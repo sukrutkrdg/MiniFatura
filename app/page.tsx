@@ -23,9 +23,8 @@ import {
 } from 'chart.js';
 import { supabase } from '../lib/supabaseClient';
 
-// ✅ DOĞRU SDK IMPORT’U (önceden yanlış olan satır değiştirildi)
-import { FrameSDK } from '@farcaster/frame-sdk';
-const sdk = new FrameSDK();
+// ✅ Güncel Farcaster Frame SDK import'u (mobil uyumlu)
+import { frameHost } from '@farcaster/frame-sdk';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement);
 
@@ -51,11 +50,11 @@ function Dashboard() {
   const [chainStats, setChainStats] = useState<ChainStat[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
 
-  // ✅ Farcaster Ready Sinyali (window.parent kontrolü kaldırıldı)
+  // ✅ Farcaster “ready” sinyali — mor ekranı kaldırır
   useEffect(() => {
     try {
-      sdk.actions.ready();
-      console.log('✅ Farcaster SDK ready çağrısı başarılı.');
+      frameHost.actions.ready();
+      console.log('✅ Farcaster frameHost ready() çağrısı başarılı.');
     } catch (e) {
       console.error('❌ Farcaster SDK ready çağrısı sırasında hata:', e);
     }
@@ -105,7 +104,7 @@ function Dashboard() {
     return allItems;
   };
 
-  // ✅ Veri Çekme Mantığı
+  // ✅ Zincir verilerini çek ve Supabase'e kaydet
   useEffect(() => {
     if (!isConnected || !address) return;
 
@@ -132,7 +131,7 @@ function Dashboard() {
         const results = await Promise.all(promises);
         setChainStats(results);
 
-        // ✅ DB'ye yazma
+        // ✅ Supabase'e kaydet
         const totalFeeAllChains = results.reduce((sum, r) => sum + r.totalFee, 0);
         const avgFeeAllChains =
           totalFeeAllChains / results.reduce((sum, r) => sum + r.txCount, 0);
