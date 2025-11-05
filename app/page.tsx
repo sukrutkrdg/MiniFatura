@@ -4,7 +4,7 @@ import '@rainbow-me/rainbowkit/styles.css';
 import {
   getDefaultConfig,
   RainbowKitProvider,
-  ConnectButton,
+  // ConnectButton, <-- İptal edildi!
 } from '@rainbow-me/rainbowkit';
 import { WagmiProvider, useAccount } from 'wagmi';
 import { mainnet, polygon, optimism, arbitrum } from 'wagmi/chains';
@@ -202,7 +202,9 @@ function Dashboard() {
   return (
     <main className="flex flex-col items-center justify-center min-h-screen p-4 bg-gray-50">
       <h1 className="text-3xl font-bold mb-6">Web3 Fatura Defteri</h1>
-      <ConnectButton />
+      {/* 🛑 ConnectButton Bileşeni, Mini Uygulama ortamında sorun yarattığı şüphesiyle kaldırıldı. */}
+      {/* <ConnectButton /> */} 
+      
       {isConnected && (
         <div className="mt-6 w-full max-w-3xl">
           {loading ? (
