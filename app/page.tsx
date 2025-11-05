@@ -7,7 +7,7 @@ import {
   ConnectButton,
 } from '@rainbow-me/rainbowkit';
 import { WagmiProvider, useAccount } from 'wagmi';
-import { mainnet, polygon, optimism, arbitrum } from 'wagmi/chains';
+import { mainnet, polygon, optimism, arbitrum, base } from 'wagmi/chains'; // ✅ BASE eklendi!
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { Bar, Pie } from 'react-chartjs-2';
@@ -26,11 +26,11 @@ import { frameHost } from '@farcaster/frame-sdk';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement);
 
-// ✅ RainbowKit Config
+// ✅ RainbowKit Config — BASE ağı dahil edildi
 const config = getDefaultConfig({
   appName: 'WalletFee Tracker',
   projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID!,
-  chains: [mainnet, polygon, optimism, arbitrum],
+  chains: [mainnet, polygon, optimism, arbitrum, base],
   ssr: true,
 });
 
@@ -83,11 +83,13 @@ function Dashboard() {
     initFrame();
   }, []);
 
+  // ✅ BASE ağı da dahil edildi
   const chains = [
     { name: 'Ethereum', slug: 'eth-mainnet' },
     { name: 'Polygon', slug: 'polygon-mainnet' },
     { name: 'Optimism', slug: 'optimism-mainnet' },
     { name: 'Arbitrum', slug: 'arbitrum-mainnet' },
+    { name: 'Base', slug: 'base-mainnet' }, // ✅ BASE ağını ekledik
   ];
 
   function classifyTransaction(tx: any): string {
@@ -202,7 +204,6 @@ function Dashboard() {
     ],
   };
 
-  // ✅ Wallet modal handle
   const handleWalletClick = (wallet: keyof typeof WALLET_LINKS) => {
     const wcUri = encodeURIComponent(window.location.href);
     const deepLink = `${WALLET_LINKS[wallet]}${wcUri}`;
