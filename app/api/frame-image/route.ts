@@ -4,6 +4,8 @@ import { NextResponse } from 'next/server';
 // Vercel uyumlu sürüm — daha hızlı ve native bağımlılık sorunu yok
 import { createCanvas } from '@napi-rs/canvas';
 
+
+
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const fee = searchParams.get('fee') || '0 ETH';
