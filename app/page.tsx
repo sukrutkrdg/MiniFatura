@@ -23,8 +23,9 @@ import {
 } from 'chart.js';
 import { supabase } from '../lib/supabaseClient';
 
-// Farcaster Mini App SDK Import'u
-import { sdk } from '@farcaster/miniapp-sdk'; 
+// ✅ DOĞRU SDK IMPORT’U (önceden yanlış olan satır değiştirildi)
+import { FrameSDK } from '@farcaster/frame-sdk';
+const sdk = new FrameSDK();
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement);
 
@@ -50,16 +51,13 @@ function Dashboard() {
   const [chainStats, setChainStats] = useState<ChainStat[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
 
-  // 1. Farcaster Ready Sinyali (Splash Screen'i Kaldırır)
+  // ✅ Farcaster Ready Sinyali (window.parent kontrolü kaldırıldı)
   useEffect(() => {
-    if (typeof window !== 'undefined' && window.parent !== window) {
-      try {
-        if (sdk && sdk.actions && sdk.actions.ready) {
-          sdk.actions.ready();
-        }
-      } catch (e) {
-        console.error("Farcaster SDK ready çağrısı sırasında hata oluştu.");
-      }
+    try {
+      sdk.actions.ready();
+      console.log('✅ Farcaster SDK ready çağrısı başarılı.');
+    } catch (e) {
+      console.error('❌ Farcaster SDK ready çağrısı sırasında hata:', e);
     }
   }, []);
 
@@ -107,7 +105,7 @@ function Dashboard() {
     return allItems;
   };
 
-  // 2. Veri Çekme Mantığı (Try/Catch/Finally ile Güçlendirildi)
+  // ✅ Veri Çekme Mantığı
   useEffect(() => {
     if (!isConnected || !address) return;
 
@@ -151,11 +149,9 @@ function Dashboard() {
           updated_at: new Date().toISOString(),
         });
       } catch (error) {
-        // Hata yakalanırsa konsola yaz ve uygulamanın donmasını engelle.
-        console.error("Veri çekme veya Supabase hatası:", error);
+        console.error('Veri çekme veya Supabase hatası:', error);
       } finally {
-        // Hata olsa da olmasa da loading durumunu kapatır.
-        setLoading(false); 
+        setLoading(false);
       }
     };
 
@@ -212,7 +208,9 @@ function Dashboard() {
             </div>
           ) : (
             <>
-              <p>Cüzdan adresin: <strong>{address}</strong></p>
+              <p>
+                Cüzdan adresin: <strong>{address}</strong>
+              </p>
 
               <div className="mt-4">
                 <label className="mr-2">Ağ Seç:</label>
@@ -231,11 +229,23 @@ function Dashboard() {
 
               {selectedData && (
                 <>
-                  <p className="mt-4">Toplam Fee: <strong>{selectedData.totalFee.toFixed(6)} ETH</strong></p>
-                  <p>Ortalama Fee: <strong>{(selectedData.totalFee / selectedData.txCount).toFixed(6)} ETH</strong></p>
-                  <p>İşlem Sayısı: <strong>{selectedData.txCount}</strong></p>
+                  <p className="mt-4">
+                    Toplam Fee:{' '}
+                    <strong>{selectedData.totalFee.toFixed(6)} ETH</strong>
+                  </p>
+                  <p>
+                    Ortalama Fee:{' '}
+                    <strong>
+                      {(selectedData.totalFee / selectedData.txCount).toFixed(6)} ETH
+                    </strong>
+                  </p>
+                  <p>
+                    İşlem Sayısı: <strong>{selectedData.txCount}</strong>
+                  </p>
 
-                  <h2 className="text-lg font-semibold mt-4">Seçilen Ağ İşlem Ücretleri Grafiği:</h2>
+                  <h2 className="text-lg font-semibold mt-4">
+                    Seçilen Ağ İşlem Ücretleri Grafiği:
+                  </h2>
                   <Bar data={chartData} />
 
                   <h2 className="text-lg font-semibold mt-6">Kategori Bazlı Harcama:</h2>
@@ -262,7 +272,9 @@ function Dashboard() {
                 </>
               )}
 
-              <h2 className="text-lg font-semibold mt-6">Ağ Bazlı Toplam Fee Karşılaştırması:</h2>
+              <h2 className="text-lg font-semibold mt-6">
+                Ağ Bazlı Toplam Fee Karşılaştırması:
+              </h2>
               <Bar data={chainChartData} />
 
               <table className="w-full border mt-4">
@@ -302,4 +314,3 @@ export default function Home() {
     </QueryClientProvider>
   );
 }
-
