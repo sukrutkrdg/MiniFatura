@@ -21,6 +21,7 @@ import {
   Legend,
   ArcElement,
 } from 'chart.js';
+import { supabase } from '../lib/supabaseClient';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement);
 
@@ -115,12 +116,29 @@ function Dashboard() {
       const results = await Promise.all(promises);
       setChainStats(results);
       setLoading(false);
+
+      // ✅ DB'ye yazma
+      const totalFeeAllChains = results.reduce((sum, r) => sum + r.totalFee, 0);
+      const avgFeeAllChains =
+        totalFeeAllChains / results.reduce((sum, r) => sum + r.txCount, 0);
+
+      const topCategory = Object.entries(results[0].categories)
+        .sort((a, b) => b[1].totalFee - a[1].totalFee)[0][0];
+
+      await supabase.from('wallet_stats').upsert({
+        wallet_address: address,
+        total_fee: totalFeeAllChains,
+        avg_fee: avgFeeAllChains,
+        top_category: topCategory,
+        chain_stats: results,
+        updated_at: new Date().toISOString(),
+      });
     };
 
     fetchChainData();
   }, [address, isConnected]);
 
-  const selectedData = chainStats.find(stat => stat.name === selectedChain);
+  const selectedData = chainStats.find((stat) => stat.name === selectedChain);
 
   const chartData = {
     labels: selectedData ? selectedData.fees.map((_, i) => `Tx ${i + 1}`) : [],
@@ -134,11 +152,11 @@ function Dashboard() {
   };
 
   const chainChartData = {
-    labels: chainStats.map(stat => stat.name),
+    labels: chainStats.map((stat) => stat.name),
     datasets: [
       {
         label: 'Toplam Fee (ETH)',
-        data: chainStats.map(stat => stat.totalFee),
+        data: chainStats.map((stat) => stat.totalFee),
         backgroundColor: 'rgba(153, 102, 255, 0.6)',
       },
     ],
@@ -149,7 +167,9 @@ function Dashboard() {
     datasets: [
       {
         label: 'Kategori Bazlı Harcama (ETH)',
-        data: selectedData ? Object.values(selectedData.categories).map(c => c.totalFee) : [],
+        data: selectedData
+          ? Object.values(selectedData.categories).map((c) => c.totalFee)
+          : [],
         backgroundColor: ['#4caf50', '#2196f3', '#ff9800'],
       },
     ],
@@ -177,8 +197,10 @@ function Dashboard() {
                   onChange={(e) => setSelectedChain(e.target.value)}
                   className="border p-2 rounded"
                 >
-                  {chains.map(chain => (
-                    <option key={chain.name} value={chain.name}>{chain.name}</option>
+                  {chains.map((chain) => (
+                    <option key={chain.name} value={chain.name}>
+                      {chain.name}
+                    </option>
                   ))}
                 </select>
               </div>
@@ -228,7 +250,7 @@ function Dashboard() {
                   </tr>
                 </thead>
                 <tbody>
-                  {chainStats.map(stat => (
+                  {chainStats.map((stat) => (
                     <tr key={stat.name} className="border-t">
                       <td className="p-2">{stat.name}</td>
                       <td className="p-2">{stat.totalFee.toFixed(6)}</td>
