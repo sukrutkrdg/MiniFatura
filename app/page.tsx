@@ -23,8 +23,7 @@ import {
 } from 'chart.js';
 import { supabase } from '../lib/supabaseClient';
 
-// Farcaster Mini App SDK Import'u buraya eklendi
-// (npm install @farcaster/miniapp-sdk paketini kurduğunuz varsayılmıştır)
+// Farcaster Mini App SDK Import'u
 import { sdk } from '@farcaster/miniapp-sdk'; 
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement);
@@ -51,23 +50,18 @@ function Dashboard() {
   const [chainStats, setChainStats] = useState<ChainStat[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
 
-  // ⬇️ YENİ EKLENEN KOD BLOKLARI: Farcaster Ready Sinyali ⬇️
+  // 1. Farcaster Ready Sinyali (Splash Screen'i Kaldırır)
   useEffect(() => {
-    // Sadece tarayıcıda tanımlıysa ve bir iframe içinde (Mini App) çalışıyorsa ready çağrısını yap.
     if (typeof window !== 'undefined' && window.parent !== window) {
       try {
         if (sdk && sdk.actions && sdk.actions.ready) {
-          // Uygulamanın yüklendiğini Farcaster istemcisine bildirir.
-          // Bu, splash ekranını kaldırır.
           sdk.actions.ready();
         }
       } catch (e) {
-        // SDK yüklenmediyse bile uygulamanın çökmesini engellemek için hata yakalama.
         console.error("Farcaster SDK ready çağrısı sırasında hata oluştu.");
       }
     }
-  }, []); // Sadece bir kez, bileşen yüklendiğinde çalışır.
-  // ⬆️ YENİ KOD BURADA BİTER ⬆️
+  }, []);
 
   const chains = [
     { name: 'Ethereum', slug: 'eth-mainnet' },
@@ -113,48 +107,56 @@ function Dashboard() {
     return allItems;
   };
 
+  // 2. Veri Çekme Mantığı (Try/Catch/Finally ile Güçlendirildi)
   useEffect(() => {
     if (!isConnected || !address) return;
 
     const fetchChainData = async () => {
       setLoading(true);
 
-      const promises = chains.map(async (chain) => {
-        const items = await fetchAllTransactions(address, chain.slug);
-        const categories: Record<string, { totalFee: number; count: number }> = {};
-        const fees = items.map((tx: any) => {
-          const feeEth = (tx.gas_price * tx.gas_spent) / 1e18;
-          const category = classifyTransaction(tx);
-          if (!categories[category]) categories[category] = { totalFee: 0, count: 0 };
-          categories[category].totalFee += feeEth;
-          categories[category].count += 1;
-          return feeEth;
+      try {
+        const promises = chains.map(async (chain) => {
+          const items = await fetchAllTransactions(address, chain.slug);
+          const categories: Record<string, { totalFee: number; count: number }> = {};
+          const fees = items.map((tx: any) => {
+            const feeEth = (tx.gas_price * tx.gas_spent) / 1e18;
+            const category = classifyTransaction(tx);
+            if (!categories[category]) categories[category] = { totalFee: 0, count: 0 };
+            categories[category].totalFee += feeEth;
+            categories[category].count += 1;
+            return feeEth;
+          });
+          const totalFee = fees.reduce((sum: number, fee: number) => sum + fee, 0);
+
+          return { name: chain.name, totalFee, txCount: items.length, fees, categories };
         });
-        const totalFee = fees.reduce((sum: number, fee: number) => sum + fee, 0);
 
-        return { name: chain.name, totalFee, txCount: items.length, fees, categories };
-      });
+        const results = await Promise.all(promises);
+        setChainStats(results);
 
-      const results = await Promise.all(promises);
-      setChainStats(results);
-      setLoading(false);
+        // ✅ DB'ye yazma
+        const totalFeeAllChains = results.reduce((sum, r) => sum + r.totalFee, 0);
+        const avgFeeAllChains =
+          totalFeeAllChains / results.reduce((sum, r) => sum + r.txCount, 0);
 
-      // ✅ DB'ye yazma
-      const totalFeeAllChains = results.reduce((sum, r) => sum + r.totalFee, 0);
-      const avgFeeAllChains =
-        totalFeeAllChains / results.reduce((sum, r) => sum + r.txCount, 0);
+        const topCategory = Object.entries(results[0].categories)
+          .sort((a, b) => b[1].totalFee - a[1].totalFee)[0][0];
 
-      const topCategory = Object.entries(results[0].categories)
-        .sort((a, b) => b[1].totalFee - a[1].totalFee)[0][0];
-
-      await supabase.from('wallet_stats').upsert({
-        wallet_address: address,
-        total_fee: totalFeeAllChains,
-        avg_fee: avgFeeAllChains,
-        top_category: topCategory,
-        chain_stats: results,
-        updated_at: new Date().toISOString(),
-      });
+        await supabase.from('wallet_stats').upsert({
+          wallet_address: address,
+          total_fee: totalFeeAllChains,
+          avg_fee: avgFeeAllChains,
+          top_category: topCategory,
+          chain_stats: results,
+          updated_at: new Date().toISOString(),
+        });
+      } catch (error) {
+        // Hata yakalanırsa konsola yaz ve uygulamanın donmasını engelle.
+        console.error("Veri çekme veya Supabase hatası:", error);
+      } finally {
+        // Hata olsa da olmasa da loading durumunu kapatır.
+        setLoading(false); 
+      }
     };
 
     fetchChainData();
