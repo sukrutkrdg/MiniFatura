@@ -26,150 +26,230 @@ import { frameHost } from '@farcaster/frame-sdk';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement);
 
-// 🌐 RainbowKit + Wagmi Config
+// RainbowKit config
 const config = getDefaultConfig({
   appName: 'WalletFee',
-  projectId: 'YOUR_PROJECT_ID',
+  projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID!,
   chains: [mainnet, polygon, optimism, arbitrum],
   ssr: true,
 });
 
 const queryClient = new QueryClient();
 
+interface ChainStat {
+  name: string;
+  totalFee: number;
+  txCount: number;
+  fees: number[];
+  categories: Record<string, { totalFee: number; count: number }>;
+}
+
 function Dashboard() {
   const { address, isConnected } = useAccount();
-  const [expenses, setExpenses] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [chainStats, setChainStats] = useState<ChainStat[]>([]);
+  const [selectedChain, setSelectedChain] = useState('Ethereum');
+  const [loading, setLoading] = useState(false);
 
-  // ✅ Farcaster Frame Initialization (MOR ekran fix)
+  // ✅ Farcaster Frame splash fix
   useEffect(() => {
     const initFrame = async () => {
       try {
-        console.log('🟣 Checking frameHost...');
-
-        // 1️⃣ Yeni SDK: frameHost.ready() direkt fonksiyon
         if (frameHost && typeof (frameHost as any).ready === 'function') {
           await (frameHost as any).ready();
           console.log('✅ frameHost.ready() çağrısı başarılı.');
-          return;
-        }
-
-        // 2️⃣ Eski SDK: frameHost.actions.ready()
-        if (
+        } else if (
           frameHost &&
           (frameHost as any).actions &&
           typeof (frameHost as any).actions.ready === 'function'
         ) {
           await (frameHost as any).actions.ready();
           console.log('✅ frameHost.actions.ready() çağrısı başarılı.');
-          return;
+        } else {
+          console.log('🌐 Web ortamı, frame değil.');
         }
-
-        // 3️⃣ Çok eski SDK fallback
-        if (typeof window !== 'undefined' && (window as any).sdk?.actions?.ready) {
-          (window as any).sdk.actions.ready();
-          console.log('✅ window.sdk.actions.ready() çağrısı tetiklendi.');
-          return;
-        }
-
-        // 4️⃣ Frame ortamı değilse web ortamında devam et
-        console.log('🌐 Frame ortamı değil, web modunda render ediliyor.');
       } catch (e) {
-        console.error('❌ Frame init hatası (yakalandı):', e);
+        console.error('❌ Frame init hatası:', e);
       }
     };
-
     initFrame();
   }, []);
 
-  // 📦 Supabase'den verileri çek
+  const chains = [
+    { name: 'Ethereum', slug: 'eth-mainnet' },
+    { name: 'Polygon', slug: 'polygon-mainnet' },
+    { name: 'Optimism', slug: 'optimism-mainnet' },
+    { name: 'Arbitrum', slug: 'arbitrum-mainnet' },
+  ];
+
+  function classifyTransaction(tx: any): string {
+    if (tx.decoded && tx.decoded.name?.toLowerCase().includes('swap')) return 'Swap';
+    if (
+      tx.log_events?.some(
+        (log: any) =>
+          log.decoded?.name?.includes('Transfer') && log.sender_contract_decimals === 0
+      )
+    )
+      return 'NFT Trade';
+    return 'Transfer';
+  }
+
+  // ✅ Covalent API ile zincir verilerini çek
+  const fetchAllTransactions = async (address: string, chainSlug: string) => {
+    let page = 0;
+    const pageSize = 1000;
+    let allItems: any[] = [];
+    let hasMore = true;
+
+    while (hasMore) {
+      const res = await fetch(
+        `https://api.covalenthq.com/v1/${chainSlug}/address/${address}/transactions_v2/?page-number=${page}&page-size=${pageSize}&key=${process.env.NEXT_PUBLIC_COVALENT_API_KEY}`
+      );
+      const data = await res.json();
+
+      if (!data?.data?.items) break;
+      allItems = allItems.concat(data.data.items);
+      hasMore = data.data.pagination?.has_more || false;
+      page++;
+    }
+
+    return allItems;
+  };
+
+  // ✅ Zincir verilerini hesapla ve DB'ye yaz
   useEffect(() => {
-    const fetchExpenses = async () => {
-      if (!isConnected || !address) return;
+    if (!isConnected || !address) return;
+
+    const fetchData = async () => {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('expenses')
-        .select('*')
-        .eq('wallet_address', address);
-      if (error) console.error(error);
-      else setExpenses(data || []);
-      setLoading(false);
+      try {
+        const promises = chains.map(async (chain) => {
+          const items = await fetchAllTransactions(address, chain.slug);
+          const categories: Record<string, { totalFee: number; count: number }> = {};
+          const fees = items.map((tx: any) => {
+            const feeEth = (tx.gas_price * tx.gas_spent) / 1e18;
+            const category = classifyTransaction(tx);
+            if (!categories[category])
+              categories[category] = { totalFee: 0, count: 0 };
+            categories[category].totalFee += feeEth;
+            categories[category].count += 1;
+            return feeEth;
+          });
+          const totalFee = fees.reduce((sum: number, f: number) => sum + f, 0);
+          return { name: chain.name, totalFee, txCount: items.length, fees, categories };
+        });
+
+        const results = await Promise.all(promises);
+        setChainStats(results);
+
+        await supabase.from('wallet_stats').upsert({
+          wallet_address: address,
+          total_fee: results.reduce((s, c) => s + c.totalFee, 0),
+          chain_stats: results,
+          updated_at: new Date().toISOString(),
+        });
+      } catch (err) {
+        console.error('Veri çekme hatası:', err);
+      } finally {
+        setLoading(false);
+      }
     };
-    fetchExpenses();
+
+    fetchData();
   }, [address, isConnected]);
 
-  const totalAmount = expenses.reduce((acc, e) => acc + e.amount, 0);
-  const categoryTotals: Record<string, number> = {};
-  expenses.forEach((e) => {
-    categoryTotals[e.category] = (categoryTotals[e.category] || 0) + e.amount;
-  });
+  const selectedData = chainStats.find((s) => s.name === selectedChain);
 
-  const barData = {
-    labels: Object.keys(categoryTotals),
+  const chartData = {
+    labels: selectedData ? selectedData.fees.map((_, i) => `Tx ${i + 1}`) : [],
     datasets: [
       {
-        label: 'Fees (Gwei)',
-        data: Object.values(categoryTotals),
-        backgroundColor: '#6200EA',
+        label: 'Fee (ETH)',
+        data: selectedData ? selectedData.fees : [],
+        backgroundColor: 'rgba(99,102,241,0.6)',
       },
     ],
   };
 
-  const pieData = {
-    labels: Object.keys(categoryTotals),
+  const chainChartData = {
+    labels: chainStats.map((c) => c.name),
     datasets: [
       {
-        data: Object.values(categoryTotals),
-        backgroundColor: ['#6200EA', '#EC4899', '#10B981', '#F59E0B', '#3B82F6'],
+        label: 'Total Fee (ETH)',
+        data: chainStats.map((c) => c.totalFee),
+        backgroundColor: 'rgba(147,51,234,0.6)',
+      },
+    ],
+  };
+
+  const categoryChartData = {
+    labels: selectedData ? Object.keys(selectedData.categories) : [],
+    datasets: [
+      {
+        label: 'Category Spending (ETH)',
+        data: selectedData
+          ? Object.values(selectedData.categories).map((v) => v.totalFee)
+          : [],
+        backgroundColor: ['#4F46E5', '#EC4899', '#10B981', '#F59E0B'],
       },
     ],
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100 flex flex-col items-center p-4">
-      <div className="w-full max-w-3xl bg-white rounded-2xl shadow-lg p-6 mt-6">
-        <div className="flex justify-between items-center mb-4">
-          <h1 className="text-2xl font-bold text-indigo-700">WalletFee Tracker</h1>
-          <ConnectButton />
-        </div>
-
-        {!isConnected ? (
-          <p className="text-center text-gray-600 mt-8">
-            Connect your wallet to track gas fees.
-          </p>
-        ) : loading ? (
-          <p className="text-center text-gray-600 mt-8">Loading...</p>
-        ) : expenses.length === 0 ? (
-          <p className="text-center text-gray-600 mt-8">
-            No transactions found yet.
-          </p>
-        ) : (
-          <>
-            <p className="text-center text-gray-700 mb-4">
-              Total Fees: <b>{totalAmount.toFixed(4)} ETH</b>
-            </p>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <h2 className="text-lg font-semibold text-indigo-600 mb-2">
-                  Breakdown by Category
-                </h2>
-                <Bar data={barData} />
-              </div>
-              <div>
-                <h2 className="text-lg font-semibold text-indigo-600 mb-2">
-                  Proportional View
-                </h2>
-                <Pie data={pieData} />
-              </div>
+    <main className="flex flex-col items-center justify-center min-h-screen p-4 bg-gray-50">
+      <h1 className="text-3xl font-bold mb-6 text-indigo-700">
+        Wallet Fee Tracker
+      </h1>
+      <ConnectButton />
+      {isConnected && (
+        <div className="mt-6 w-full max-w-3xl">
+          {loading ? (
+            <div className="flex flex-col items-center">
+              <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-indigo-500 mb-4"></div>
+              <p>Fetching transaction data...</p>
             </div>
-          </>
-        )}
-      </div>
-    </div>
+          ) : (
+            <>
+              <div className="mt-4">
+                <label className="mr-2">Select Chain:</label>
+                <select
+                  value={selectedChain}
+                  onChange={(e) => setSelectedChain(e.target.value)}
+                  className="border p-2 rounded"
+                >
+                  {chains.map((chain) => (
+                    <option key={chain.name} value={chain.name}>
+                      {chain.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {selectedData && (
+                <>
+                  <p className="mt-4">
+                    Total Fee:{' '}
+                    <strong>{selectedData.totalFee.toFixed(6)} ETH</strong>
+                  </p>
+                  <p>
+                    Transactions: <strong>{selectedData.txCount}</strong>
+                  </p>
+                  <Bar data={chartData} className="mt-4" />
+                  <Pie data={categoryChartData} className="mt-6" />
+                </>
+              )}
+
+              <h2 className="text-lg font-semibold mt-8">
+                Total Fee by Chain
+              </h2>
+              <Bar data={chainChartData} className="mt-2" />
+            </>
+          )}
+        </div>
+      )}
+    </main>
   );
 }
 
-// 🌐 Root Provider Wrapper
 export default function Page() {
   return (
     <WagmiProvider config={config}>
