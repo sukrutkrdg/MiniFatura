@@ -1,11 +1,7 @@
 'use client';
 
-import '@rainbow-me/rainbowkit/styles.css';
-import {
-  getDefaultConfig,
-  RainbowKitProvider,
-} from '@rainbow-me/rainbowkit';
-import { WagmiProvider, useAccount, createConfig, http } from 'wagmi'; // createConfig ve http import edildi
+// @rainbow-me/rainbowkit/styles.css artık gerekmiyor
+import { WagmiProvider, useAccount, createConfig, http } from 'wagmi'; 
 import { mainnet, polygon, optimism, arbitrum } from 'wagmi/chains';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
@@ -39,18 +35,14 @@ interface ChainStat {
   categories: Record<string, { totalFee: number; count: number }>;
 }
 
-// ⬇️ WAGMI YAPILANDIRMASI: Hata veren appName ve projectId kaldırıldı ⬇️
+// ⬇️ WAGMI YAPILANDIRMASI: Konektör eklendi ⬇️
 const config = createConfig({
-  // appName ve projectId hatalı olduğu için kökten kaldırıldı.
-  // Bu bilgiler RainbowKit'in kendisi veya konektörler tarafından otomatik olarak kullanılır.
-  
-  // Farcaster Mini App konektörü eklenerek mobil kilitlenme çözüldü.
+  // Farcaster Mini App konektörü ilk sırada
   connectors: [
     farcasterMiniApp(),
-    // Diğer standart konektörler (WalletConnect vb.) buraya eklenebilir.
+    // Diğer standart konektörler (eğer isterseniz) buraya eklenebilir.
   ],
   
-  // createConfig kullanırken taşıyıcı (transport) manuel tanımlanmalı
   chains: [mainnet, polygon, optimism, arbitrum],
   transports: {
     [mainnet.id]: http(),
@@ -59,7 +51,7 @@ const config = createConfig({
     [arbitrum.id]: http(),
   },
 });
-// ⬆️ CONFIG DÜZELTİLDİ ⬆️
+// ⬆️ CONFIG BİTTİ ⬆️
 
 
 const queryClient = new QueryClient();
@@ -129,7 +121,6 @@ function Dashboard() {
 
   // 2. Veri Çekme Mantığı (Try/Catch/Finally ile Güçlendirildi)
   useEffect(() => {
-    // Konektör doğru çalışacağı için bu kontrol artık güvenilirdir.
     if (!isConnected || !address) return;
 
     const fetchChainData = async () => {
@@ -221,8 +212,8 @@ function Dashboard() {
   return (
     <main className="flex flex-col items-center justify-center min-h-screen p-4 bg-gray-50">
       <h1 className="text-3xl font-bold mb-6">Web3 Fatura Defteri</h1>
-      {/* Cüzdan bağlantısı Mini Uygulama ortamında otomatik olmalıdır. */}
-      {/* isConnected true olduğunda içeriği gösterecek. */}
+      
+      {/* Cüzdan bağlantısı Mini Uygulama ortamında otomatik olduğu için ConnectButton gerekmez. */}
       
       {!isConnected && (
          <p className="text-red-500">Lütfen Farcaster/Base App içinde cüzdanınızın bağlı olduğundan emin olun.</p>
@@ -316,14 +307,12 @@ function Dashboard() {
   );
 }
 
-// Home fonksiyonu eski haline getirildi, çünkü mantık artık config'de
+// ⬇️ HOME FONKSİYONUNDAN RAINBOWKIT KALDIRILDI ⬇️
 export default function Home() {
   return (
     <QueryClientProvider client={queryClient}>
       <WagmiProvider config={config}>
-        <RainbowKitProvider>
           <Dashboard />
-        </RainbowKitProvider>
       </WagmiProvider>
     </QueryClientProvider>
   );
