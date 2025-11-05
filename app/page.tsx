@@ -7,7 +7,7 @@ import {
   ConnectButton,
 } from '@rainbow-me/rainbowkit';
 import { WagmiProvider, useAccount } from 'wagmi';
-import { mainnet, polygon, optimism, arbitrum, base } from 'wagmi/chains'; // ✅ BASE eklendi!
+import { mainnet, polygon, optimism, arbitrum, base } from 'wagmi/chains'; // ✅ BASE eklendi
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { Bar, Pie } from 'react-chartjs-2';
@@ -24,6 +24,7 @@ import {
 import { supabase } from '../lib/supabaseClient';
 import { frameHost } from '@farcaster/frame-sdk';
 
+// ✅ Chart.js setup
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement);
 
 // ✅ RainbowKit Config — BASE ağı dahil edildi
@@ -44,17 +45,21 @@ const WALLET_LINKS: Record<string, string> = {
   coinbase: 'https://go.cb-w.com/wc?uri=',
 };
 
+// ✅ Basit mobil kontrolü
 function isMobile() {
+  if (typeof navigator === 'undefined') return false;
   return /Mobi|Android/i.test(navigator.userAgent);
 }
 
+// ✅ Farcaster frame fix (TypeScript uyumlu)
 async function initFrame() {
   try {
-    if (frameHost && typeof (frameHost as any).ready === 'function') {
-      await (frameHost as any).ready();
+    const host = frameHost as any;
+    if (host && typeof host.ready === 'function') {
+      await host.ready();
       console.log('✅ frameHost.ready() başarılı.');
-    } else if (frameHost?.actions?.ready) {
-      await frameHost.actions.ready();
+    } else if (host?.actions?.ready) {
+      await host.actions.ready();
       console.log('✅ frameHost.actions.ready() başarılı.');
     } else {
       console.log('🌐 Web ortamı.');
@@ -83,13 +88,12 @@ function Dashboard() {
     initFrame();
   }, []);
 
-  // ✅ BASE ağı da dahil edildi
   const chains = [
     { name: 'Ethereum', slug: 'eth-mainnet' },
     { name: 'Polygon', slug: 'polygon-mainnet' },
     { name: 'Optimism', slug: 'optimism-mainnet' },
     { name: 'Arbitrum', slug: 'arbitrum-mainnet' },
-    { name: 'Base', slug: 'base-mainnet' }, // ✅ BASE ağını ekledik
+    { name: 'Base', slug: 'base-mainnet' },
   ];
 
   function classifyTransaction(tx: any): string {
@@ -293,9 +297,7 @@ function Dashboard() {
                 </>
               )}
 
-              <h2 className="text-lg font-semibold mt-8">
-                Total Fee by Chain
-              </h2>
+              <h2 className="text-lg font-semibold mt-8">Total Fee by Chain</h2>
               <Bar data={chainChartData} className="mt-2" />
             </>
           )}
