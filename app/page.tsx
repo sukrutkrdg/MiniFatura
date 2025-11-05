@@ -1,6 +1,6 @@
 'use client';
 
-// @rainbow-me/rainbowkit/styles.css artık kaldırıldı
+// RainbowKit importları, Wagmi importları, createConfig ve http
 import { WagmiProvider, useAccount, createConfig, http, useConnect, useDisconnect } from 'wagmi'; 
 import { mainnet, polygon, optimism, arbitrum } from 'wagmi/chains';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -20,8 +20,6 @@ import { supabase } from '../lib/supabaseClient';
 
 // Farcaster Mini App SDK Import'u
 import { sdk } from '@farcaster/miniapp-sdk'; 
-
-// WAGMI KONEKTÖRÜ İMPORT EDİLİYOR
 import { farcasterMiniApp } from '@farcaster/miniapp-wagmi-connector';
 import { injected, walletConnect, metaMask } from 'wagmi/connectors';
 
@@ -36,15 +34,16 @@ interface ChainStat {
   categories: Record<string, { totalFee: number; count: number }>;
 }
 
-// ⬇️ WAGMI YAPILANDIRMASI: Konektörler düzeltildi ⬇️
+// ⬇️ WAGMI YAPILANDIRMASI: Hata veren projectId KÖK KISIMDAN KALDIRILDI ⬇️
 const config = createConfig({
-  projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID!, 
+  // projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID!, <-- ARTIK BURADA DEĞİL
   
+  // Connectors: projectId, konektörlerin içine taşındı
   connectors: [
     farcasterMiniApp(), 
     injected(),
     metaMask(),
-    walletConnect({ projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID! }),
+    walletConnect({ projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID! }), // Sadece bu konektörde tanımlı
   ],
   
   chains: [mainnet, polygon, optimism, arbitrum],
@@ -55,20 +54,18 @@ const config = createConfig({
     [arbitrum.id]: http(),
   },
 });
-// ⬆️ CONFIG BİTTİ ⬆️
+// ⬆️ CONFIG DÜZELTİLDİ ⬆️
 
 
 const queryClient = new QueryClient();
 
 
-// ⬇️ ÖZEL BAĞLANTI BİLEŞENİ (KESME BUTONU DÜZELTİLDİ) ⬇️
+// ⬇️ ÖZEL BAĞLANTI BİLEŞENİ ⬇️
 function ConnectWalletButtons() {
-  // useAccount ve useDisconnect ile bağlantı durumu ve kesme fonksiyonu alınır
   const { address, isConnected, connector: activeConnector } = useAccount();
   const { disconnect } = useDisconnect();
   const { connect, connectors, isLoading, pendingConnector } = useConnect();
   
-  // Uygulamanın Mini Uygulama (iframe) içinde çalışıp çalışmadığını kontrol et
   const isMiniApp = typeof window !== 'undefined' && window.parent !== window;
 
   if (isConnected) {
@@ -86,7 +83,6 @@ function ConnectWalletButtons() {
   }
   
   if (isMiniApp) {
-    // Mini Uygulama ortamında sadece cüzdanın bağlı olması gerektiğini belirt
     return (
       <p className="text-sm text-blue-600 bg-blue-100 p-3 rounded-md mb-4">
         Mini Uygulama ortamında cüzdan otomatik bağlanır. Lütfen Farcaster/Base App içindeki cüzdanınızın aktif olduğundan emin olun.
@@ -127,7 +123,6 @@ function Dashboard() {
     if (typeof window !== 'undefined' && window.parent !== window) {
       try {
         if (sdk && sdk.actions && sdk.actions.ready) {
-          // Ready sinyalini erken göndererek mor ekranı kaldırmayı zorla
           sdk.actions.ready();
         }
       } catch (e) {
@@ -365,7 +360,7 @@ function Dashboard() {
   );
 }
 
-// ⬇️ HOME FONKSİYONUNDAN RAINBOWKIT KALDIRILDI ⬇️
+// Home fonksiyonu
 export default function Home() {
   return (
     <QueryClientProvider client={queryClient}>
