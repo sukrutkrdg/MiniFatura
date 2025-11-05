@@ -1,43 +1,21 @@
-export const runtime = 'nodejs'; // 🔧 Bu satır Vercel'de zorunlu
-
 import { NextResponse } from 'next/server';
-// Vercel uyumlu sürüm — daha hızlı ve native bağımlılık sorunu yok
-import { createCanvas } from '@napi-rs/canvas';
 
-
+export const runtime = 'edge'; // Edge uyumlu
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const fee = searchParams.get('fee') || '0 ETH';
   const category = searchParams.get('category') || 'Transfer';
 
-  const width = 1200;
-  const height = 630;
-  const canvas = createCanvas(width, height);
-  const ctx = canvas.getContext('2d');
+  const svg = `
+  <svg width="1200" height="630" xmlns="http://www.w3.org/2000/svg">
+    <rect width="100%" height="100%" fill="#f9fafb"/>
+    <text x="50" y="100" font-size="48" font-weight="bold" fill="#111827">Web3 Fatura Özeti</text>
+    <text x="50" y="200" font-size="36" fill="#111827">Toplam Fee: ${fee}</text>
+    <text x="50" y="280" font-size="36" fill="#111827">En Çok Harcama: ${category}</text>
+  </svg>`;
 
-  // 🔹 Arka plan
-  ctx.fillStyle = '#f9fafb';
-  ctx.fillRect(0, 0, width, height);
-
-  // 🔹 Başlık
-  ctx.fillStyle = '#111827';
-  ctx.font = 'bold 64px Arial';
-  ctx.fillText('Web3 Fatura Özeti', 60, 120);
-
-  // 🔹 Bilgiler
-  ctx.font = '40px Arial';
-  ctx.fillText(`Toplam Fee: ${fee}`, 60, 240);
-  ctx.fillText(`En Çok Harcama: ${category}`, 60, 320);
-
-  // 🔹 Alt yazı (isteğe bağlı)
-  ctx.font = '28px Arial';
-  ctx.fillStyle = '#4b5563';
-  ctx.fillText('miniFatura.app', 60, 500);
-
-  const buffer = canvas.toBuffer('image/png');
-
-  return new NextResponse(buffer, {
-    headers: { 'Content-Type': 'image/png' },
+  return new NextResponse(svg, {
+    headers: { 'Content-Type': 'image/svg+xml' },
   });
 }
