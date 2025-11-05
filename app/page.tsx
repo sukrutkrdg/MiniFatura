@@ -22,294 +22,143 @@ import {
   ArcElement,
 } from 'chart.js';
 import { supabase } from '../lib/supabaseClient';
-
-// ✅ Güncel Farcaster Frame SDK import'u (mobil uyumlu)
-import { frameHost } from '@farcaster/frame-sdk';
+import { frameHost } from '@farcaster/frame-sdk'; // ✅ Güncel SDK import
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement);
 
-interface ChainStat {
-  name: string;
-  totalFee: number;
-  txCount: number;
-  fees: number[];
-  categories: Record<string, { totalFee: number; count: number }>;
-}
-
+// Wagmi + RainbowKit Config
 const config = getDefaultConfig({
   appName: 'Web3 Fatura Defteri',
-  projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID!,
+  projectId: 'YOUR_PROJECT_ID',
   chains: [mainnet, polygon, optimism, arbitrum],
+  ssr: true,
 });
 
 const queryClient = new QueryClient();
 
 function Dashboard() {
   const { address, isConnected } = useAccount();
-  const [selectedChain, setSelectedChain] = useState<string>('Ethereum');
-  const [chainStats, setChainStats] = useState<ChainStat[]>([]);
-  const [loading, setLoading] = useState<boolean>(false);
+  const [expenses, setExpenses] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // ✅ Farcaster “ready” sinyali — mor ekranı kaldırır
+  // ✅ Farcaster Frame Ready sinyali (mobilde mor ekranı kaldırır)
   useEffect(() => {
-    try {
-      frameHost.actions.ready();
-      console.log('✅ Farcaster frameHost ready() çağrısı başarılı.');
-    } catch (e) {
-      console.error('❌ Farcaster SDK ready çağrısı sırasında hata:', e);
-    }
-  }, []);
-
-  const chains = [
-    { name: 'Ethereum', slug: 'eth-mainnet' },
-    { name: 'Polygon', slug: 'polygon-mainnet' },
-    { name: 'Optimism', slug: 'optimism-mainnet' },
-    { name: 'Arbitrum', slug: 'arbitrum-mainnet' },
-  ];
-
-  function classifyTransaction(tx: any): string {
-    if (tx.decoded && tx.decoded.name?.toLowerCase().includes('swap')) return 'Swap';
-    if (
-      tx.log_events?.some(
-        (log: any) =>
-          log.decoded?.name?.includes('Transfer') && log.sender_contract_decimals === 0
-      )
-    )
-      return 'NFT Trade';
-    return 'Transfer';
-  }
-
-  const fetchAllTransactions = async (address: string, chainSlug: string) => {
-    let page = 0;
-    const pageSize = 1000;
-    let allItems: any[] = [];
-    let hasMore = true;
-
-    while (hasMore) {
-      const res = await fetch(
-        `https://api.covalenthq.com/v1/${chainSlug}/address/${address}/transactions_v2/?page-number=${page}&page-size=${pageSize}&key=${process.env.NEXT_PUBLIC_COVALENT_API_KEY}`
-      );
-      const data = await res.json();
-
-      if (!data || !data.data || !data.data.items) {
-        console.error(`API yanıtı geçersiz: ${chainSlug}`, data);
-        break;
-      }
-
-      allItems = allItems.concat(data.data.items);
-      hasMore = data.data.pagination?.has_more || false;
-      page++;
-    }
-
-    return allItems;
-  };
-
-  // ✅ Zincir verilerini çek ve Supabase'e kaydet
-  useEffect(() => {
-    if (!isConnected || !address) return;
-
-    const fetchChainData = async () => {
-      setLoading(true);
-
+    const init = async () => {
       try {
-        const promises = chains.map(async (chain) => {
-          const items = await fetchAllTransactions(address, chain.slug);
-          const categories: Record<string, { totalFee: number; count: number }> = {};
-          const fees = items.map((tx: any) => {
-            const feeEth = (tx.gas_price * tx.gas_spent) / 1e18;
-            const category = classifyTransaction(tx);
-            if (!categories[category]) categories[category] = { totalFee: 0, count: 0 };
-            categories[category].totalFee += feeEth;
-            categories[category].count += 1;
-            return feeEth;
-          });
-          const totalFee = fees.reduce((sum: number, fee: number) => sum + fee, 0);
-
-          return { name: chain.name, totalFee, txCount: items.length, fees, categories };
-        });
-
-        const results = await Promise.all(promises);
-        setChainStats(results);
-
-        // ✅ Supabase'e kaydet
-        const totalFeeAllChains = results.reduce((sum, r) => sum + r.totalFee, 0);
-        const avgFeeAllChains =
-          totalFeeAllChains / results.reduce((sum, r) => sum + r.txCount, 0);
-
-        const topCategory = Object.entries(results[0].categories)
-          .sort((a, b) => b[1].totalFee - a[1].totalFee)[0][0];
-
-        await supabase.from('wallet_stats').upsert({
-          wallet_address: address,
-          total_fee: totalFeeAllChains,
-          avg_fee: avgFeeAllChains,
-          top_category: topCategory,
-          chain_stats: results,
-          updated_at: new Date().toISOString(),
-        });
-      } catch (error) {
-        console.error('Veri çekme veya Supabase hatası:', error);
-      } finally {
-        setLoading(false);
+        const host = await frameHost();
+        await host.ready();
+        console.log('✅ Farcaster frameHost ready() çağrısı başarılı.');
+      } catch (e) {
+        console.error('❌ Farcaster SDK ready çağrısı sırasında hata:', e);
       }
     };
+    init();
+  }, []);
 
-    fetchChainData();
+  // 📦 Supabase'den veri çek
+  useEffect(() => {
+    const fetchExpenses = async () => {
+      if (!isConnected || !address) return;
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('expenses')
+        .select('*')
+        .eq('wallet_address', address);
+      if (error) console.error(error);
+      else setExpenses(data || []);
+      setLoading(false);
+    };
+    fetchExpenses();
   }, [address, isConnected]);
 
-  const selectedData = chainStats.find((stat) => stat.name === selectedChain);
+  const totalAmount = expenses.reduce((acc, e) => acc + e.amount, 0);
+  const categoryTotals: Record<string, number> = {};
+  expenses.forEach((e) => {
+    categoryTotals[e.category] = (categoryTotals[e.category] || 0) + e.amount;
+  });
 
-  const chartData = {
-    labels: selectedData ? selectedData.fees.map((_, i) => `Tx ${i + 1}`) : [],
+  const barData = {
+    labels: Object.keys(categoryTotals),
     datasets: [
       {
-        label: 'Fee (ETH)',
-        data: selectedData ? selectedData.fees : [],
-        backgroundColor: 'rgba(75, 192, 192, 0.6)',
+        label: 'Giderler (₺)',
+        data: Object.values(categoryTotals),
+        backgroundColor: '#4F46E5',
       },
     ],
   };
 
-  const chainChartData = {
-    labels: chainStats.map((stat) => stat.name),
+  const pieData = {
+    labels: Object.keys(categoryTotals),
     datasets: [
       {
-        label: 'Toplam Fee (ETH)',
-        data: chainStats.map((stat) => stat.totalFee),
-        backgroundColor: 'rgba(153, 102, 255, 0.6)',
-      },
-    ],
-  };
-
-  const categoryChartData = {
-    labels: selectedData ? Object.keys(selectedData.categories) : [],
-    datasets: [
-      {
-        label: 'Kategori Bazlı Harcama (ETH)',
-        data: selectedData
-          ? Object.values(selectedData.categories).map((c) => c.totalFee)
-          : [],
-        backgroundColor: ['#4caf50', '#2196f3', '#ff9800'],
+        data: Object.values(categoryTotals),
+        backgroundColor: [
+          '#4F46E5',
+          '#EC4899',
+          '#10B981',
+          '#F59E0B',
+          '#3B82F6',
+        ],
       },
     ],
   };
 
   return (
-    <main className="flex flex-col items-center justify-center min-h-screen p-4 bg-gray-50">
-      <h1 className="text-3xl font-bold mb-6">Web3 Fatura Defteri</h1>
-      <ConnectButton />
-      {isConnected && (
-        <div className="mt-6 w-full max-w-3xl">
-          {loading ? (
-            <div className="flex flex-col items-center">
-              <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-blue-500 mb-4"></div>
-              <p>Veriler yükleniyor, lütfen bekleyin...</p>
-            </div>
-          ) : (
-            <>
-              <p>
-                Cüzdan adresin: <strong>{address}</strong>
-              </p>
-
-              <div className="mt-4">
-                <label className="mr-2">Ağ Seç:</label>
-                <select
-                  value={selectedChain}
-                  onChange={(e) => setSelectedChain(e.target.value)}
-                  className="border p-2 rounded"
-                >
-                  {chains.map((chain) => (
-                    <option key={chain.name} value={chain.name}>
-                      {chain.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {selectedData && (
-                <>
-                  <p className="mt-4">
-                    Toplam Fee:{' '}
-                    <strong>{selectedData.totalFee.toFixed(6)} ETH</strong>
-                  </p>
-                  <p>
-                    Ortalama Fee:{' '}
-                    <strong>
-                      {(selectedData.totalFee / selectedData.txCount).toFixed(6)} ETH
-                    </strong>
-                  </p>
-                  <p>
-                    İşlem Sayısı: <strong>{selectedData.txCount}</strong>
-                  </p>
-
-                  <h2 className="text-lg font-semibold mt-4">
-                    Seçilen Ağ İşlem Ücretleri Grafiği:
-                  </h2>
-                  <Bar data={chartData} />
-
-                  <h2 className="text-lg font-semibold mt-6">Kategori Bazlı Harcama:</h2>
-                  <Pie data={categoryChartData} />
-
-                  <table className="w-full border mt-4">
-                    <thead>
-                      <tr className="bg-gray-200">
-                        <th className="p-2">Kategori</th>
-                        <th className="p-2">Toplam Fee (ETH)</th>
-                        <th className="p-2">İşlem Sayısı</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {Object.entries(selectedData.categories).map(([cat, val]) => (
-                        <tr key={cat} className="border-t">
-                          <td className="p-2">{cat}</td>
-                          <td className="p-2">{val.totalFee.toFixed(6)}</td>
-                          <td className="p-2">{val.count}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </>
-              )}
-
-              <h2 className="text-lg font-semibold mt-6">
-                Ağ Bazlı Toplam Fee Karşılaştırması:
-              </h2>
-              <Bar data={chainChartData} />
-
-              <table className="w-full border mt-4">
-                <thead>
-                  <tr className="bg-gray-200">
-                    <th className="p-2">Ağ</th>
-                    <th className="p-2">Toplam Fee (ETH)</th>
-                    <th className="p-2">İşlem Sayısı</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {chainStats.map((stat) => (
-                    <tr key={stat.name} className="border-t">
-                      <td className="p-2">{stat.name}</td>
-                      <td className="p-2">{stat.totalFee.toFixed(6)}</td>
-                      <td className="p-2">{stat.txCount}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </>
-          )}
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-purple-100 flex flex-col items-center p-4">
+      <div className="w-full max-w-3xl bg-white rounded-2xl shadow-lg p-6 mt-6">
+        <div className="flex justify-between items-center mb-4">
+          <h1 className="text-2xl font-bold text-indigo-700">
+            Web3 Fatura Defteri
+          </h1>
+          <ConnectButton />
         </div>
-      )}
-    </main>
+
+        {!isConnected ? (
+          <p className="text-center text-gray-600 mt-8">
+            Cüzdanınızı bağlayın.
+          </p>
+        ) : loading ? (
+          <p className="text-center text-gray-600 mt-8">Yükleniyor...</p>
+        ) : expenses.length === 0 ? (
+          <p className="text-center text-gray-600 mt-8">
+            Henüz gider bulunamadı.
+          </p>
+        ) : (
+          <>
+            <p className="text-center text-gray-700 mb-4">
+              Toplam Gider: <b>{totalAmount.toFixed(2)} ₺</b>
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <h2 className="text-lg font-semibold text-indigo-600 mb-2">
+                  Kategorilere Göre Dağılım
+                </h2>
+                <Bar data={barData} />
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold text-indigo-600 mb-2">
+                  Oransal Gösterim
+                </h2>
+                <Pie data={pieData} />
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
   );
 }
 
-export default function Home() {
+// ✅ Uygulamanın ana provider’ları
+export default function Page() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <WagmiProvider config={config}>
+    <WagmiProvider config={config}>
+      <QueryClientProvider client={queryClient}>
         <RainbowKitProvider>
           <Dashboard />
         </RainbowKitProvider>
-      </WagmiProvider>
-    </QueryClientProvider>
+      </QueryClientProvider>
+    </WagmiProvider>
   );
 }
