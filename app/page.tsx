@@ -26,6 +26,10 @@ import { supabase } from '../lib/supabaseClient';
 // Farcaster Mini App SDK Import'u
 import { sdk } from '@farcaster/miniapp-sdk'; 
 
+// ⬇️ WAGMI KONEKTÖRÜ İMPORT EDİLİYOR (npm install @farcaster/miniapp-wagmi-connector varsayımıyla) ⬇️
+import { farcasterMiniApp } from '@farcaster/miniapp-wagmi-connector';
+
+
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement);
 
 interface ChainStat {
@@ -36,11 +40,19 @@ interface ChainStat {
   categories: Record<string, { totalFee: number; count: number }>;
 }
 
+// ⬇️ CONFIG GÜNCELLENDİ: farcasterMiniApp konektörü öncelikli olarak eklendi ⬇️
 const config = getDefaultConfig({
   appName: 'Web3 Fatura Defteri',
   projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID!,
   chains: [mainnet, polygon, optimism, arbitrum],
+  // Bu konektör, Mini Uygulama ortamını algılayıp Farcaster'ın cüzdanını kullanır.
+  connectors: [
+    farcasterMiniApp(),
+    // Diğer standart konektörler (WalletConnect vb.) buraya eklenebilir
+  ], 
 });
+// ⬆️ CONFIG GÜNCELLEMESİ BİTTİ ⬆️
+
 
 const queryClient = new QueryClient();
 
@@ -51,7 +63,6 @@ function Dashboard() {
   const [loading, setLoading] = useState<boolean>(false);
 
   // 1. Farcaster Ready Sinyali (Splash Screen'i Kaldırır)
-  // Bu çağrı artık Wagmi/RainbowKit'in donmasını beklemeyecek.
   useEffect(() => {
     if (typeof window !== 'undefined' && window.parent !== window) {
       try {
@@ -110,8 +121,7 @@ function Dashboard() {
 
   // 2. Veri Çekme Mantığı (Try/Catch/Finally ile Güçlendirildi)
   useEffect(() => {
-    // Mini Uygulama ortamında bu değerler başlangıçta false/undefined olabilir.
-    // Veri çekme işlemi sadece bağlı cüzdan varsa yapılır.
+    // Mini Uygulama ortamında konektör doğru çalışacağı için artık isConnected/address kullanılabilir.
     if (!isConnected || !address) return;
 
     const fetchChainData = async () => {
@@ -204,7 +214,7 @@ function Dashboard() {
     <main className="flex flex-col items-center justify-center min-h-screen p-4 bg-gray-50">
       <h1 className="text-3xl font-bold mb-6">Web3 Fatura Defteri</h1>
       {/* ConnectButton, Mini Uygulama ortamında sorun yarattığı şüphesiyle kaldırılmıştır. */}
-      {/* <ConnectButton /> */} 
+      {/* Cüzdan bağlantısı otomatik yapılmalıdır. */}
       
       {isConnected && (
         <div className="mt-6 w-full max-w-3xl">
@@ -294,21 +304,8 @@ function Dashboard() {
   );
 }
 
+// ⬇️ Home fonksiyonu eski haline getirildi, çünkü mantık artık config'de ⬇️
 export default function Home() {
-  // ⬇️ BURADAKİ DEĞİŞİKLİK SORUNUNUZU ÇÖZMELİ ⬇️
-  // Mini Uygulama ortamını kontrol et
-  const isMiniApp = typeof window !== 'undefined' && window.parent !== window;
-
-  if (isMiniApp) {
-    // Mini Uygulama Ortamı: Wagmi/RainbowKit sarmalayıcılarını atla
-    return (
-      <QueryClientProvider client={queryClient}>
-        <Dashboard />
-      </QueryClientProvider>
-    );
-  }
-
-  // Normal Web Ortamı: Tam sarmalayıcı yığınını kullan
   return (
     <QueryClientProvider client={queryClient}>
       <WagmiProvider config={config}>
