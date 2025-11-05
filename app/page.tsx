@@ -23,6 +23,12 @@ import {
 } from 'chart.js';
 import { supabase } from '../lib/supabaseClient';
 
+// Diğer importlarınızın altına ekleyin.
+// Varsayılan ve en güncel paket adını kullanıyoruz.
+import { sdk } from '@farcaster/miniapp-sdk'; 
+// import { useEffect, useState } from 'react'; // Zaten mevcut
+// ... diğer importlarınız ...
+
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement);
 
 interface ChainStat {
