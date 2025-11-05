@@ -1,7 +1,7 @@
 'use client';
 
-// @rainbow-me/rainbowkit/styles.css artık gerekmiyor
-import { WagmiProvider, useAccount, createConfig, http } from 'wagmi'; 
+// @rainbow-me/rainbowkit/styles.css artık kaldırıldı
+import { WagmiProvider, useAccount, createConfig, http, useConnect, useDisconnect } from 'wagmi'; 
 import { mainnet, polygon, optimism, arbitrum } from 'wagmi/chains';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
@@ -23,6 +23,7 @@ import { sdk } from '@farcaster/miniapp-sdk';
 
 // WAGMI KONEKTÖRÜ İMPORT EDİLİYOR
 import { farcasterMiniApp } from '@farcaster/miniapp-wagmi-connector';
+import { injected, walletConnect, metaMask } from 'wagmi/connectors';
 
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement);
@@ -35,12 +36,15 @@ interface ChainStat {
   categories: Record<string, { totalFee: number; count: number }>;
 }
 
-// ⬇️ WAGMI YAPILANDIRMASI: Konektör eklendi ⬇️
+// ⬇️ WAGMI YAPILANDIRMASI: Konektörler düzeltildi ⬇️
 const config = createConfig({
-  // Farcaster Mini App konektörü ilk sırada
+  projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID!, 
+  
   connectors: [
-    farcasterMiniApp(),
-    // Diğer standart konektörler (eğer isterseniz) buraya eklenebilir.
+    farcasterMiniApp(), 
+    injected(),
+    metaMask(),
+    walletConnect({ projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID! }),
   ],
   
   chains: [mainnet, polygon, optimism, arbitrum],
@@ -56,6 +60,62 @@ const config = createConfig({
 
 const queryClient = new QueryClient();
 
+
+// ⬇️ ÖZEL BAĞLANTI BİLEŞENİ (KESME BUTONU DÜZELTİLDİ) ⬇️
+function ConnectWalletButtons() {
+  // useAccount ve useDisconnect ile bağlantı durumu ve kesme fonksiyonu alınır
+  const { address, isConnected, connector: activeConnector } = useAccount();
+  const { disconnect } = useDisconnect();
+  const { connect, connectors, isLoading, pendingConnector } = useConnect();
+  
+  // Uygulamanın Mini Uygulama (iframe) içinde çalışıp çalışmadığını kontrol et
+  const isMiniApp = typeof window !== 'undefined' && window.parent !== window;
+
+  if (isConnected) {
+    return (
+      <div className="flex flex-col items-center gap-2 mb-4">
+        <p className="text-sm text-green-700">Bağlı: {activeConnector?.name || "Mini App Cüzdanı"}</p>
+        <button
+          onClick={() => disconnect()}
+          className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+        >
+          Bağlantıyı Kes
+        </button>
+      </div>
+    );
+  }
+  
+  if (isMiniApp) {
+    // Mini Uygulama ortamında sadece cüzdanın bağlı olması gerektiğini belirt
+    return (
+      <p className="text-sm text-blue-600 bg-blue-100 p-3 rounded-md mb-4">
+        Mini Uygulama ortamında cüzdan otomatik bağlanır. Lütfen Farcaster/Base App içindeki cüzdanınızın aktif olduğundan emin olun.
+      </p>
+    );
+  }
+
+  // Web ortamında tüm konektörleri listele
+  return (
+    <div className="flex flex-wrap justify-center gap-3 mb-4">
+      {connectors
+        .map((connector) => (
+          <button
+            key={connector.uid}
+            onClick={() => connect({ connector })}
+            disabled={!connector.ready || (isLoading && connector.id === pendingConnector?.id)}
+            className={`px-4 py-2 rounded-lg text-white transition-colors 
+              ${!connector.ready ? 'bg-gray-400' : 'bg-blue-600 hover:bg-blue-700'}`}
+          >
+            {connector.name}
+            {isLoading && connector.id === pendingConnector?.id && ' (Bağlanıyor...)'}
+          </button>
+        ))}
+    </div>
+  );
+}
+// ⬆️ ÖZEL BAĞLANTI BİLEŞENİ BİTTİ ⬆️
+
+
 function Dashboard() {
   const { address, isConnected } = useAccount();
   const [selectedChain, setSelectedChain] = useState<string>('Ethereum');
@@ -67,6 +127,7 @@ function Dashboard() {
     if (typeof window !== 'undefined' && window.parent !== window) {
       try {
         if (sdk && sdk.actions && sdk.actions.ready) {
+          // Ready sinyalini erken göndererek mor ekranı kaldırmayı zorla
           sdk.actions.ready();
         }
       } catch (e) {
@@ -213,12 +274,9 @@ function Dashboard() {
     <main className="flex flex-col items-center justify-center min-h-screen p-4 bg-gray-50">
       <h1 className="text-3xl font-bold mb-6">Web3 Fatura Defteri</h1>
       
-      {/* Cüzdan bağlantısı Mini Uygulama ortamında otomatik olduğu için ConnectButton gerekmez. */}
+      {/* ⬇️ BAĞLANTI BUTONLARI BURADA KULLANILIYOR ⬇️ */}
+      <ConnectWalletButtons />
       
-      {!isConnected && (
-         <p className="text-red-500">Lütfen Farcaster/Base App içinde cüzdanınızın bağlı olduğundan emin olun.</p>
-      )}
-
       {isConnected && (
         <div className="mt-6 w-full max-w-3xl">
           {loading ? (
