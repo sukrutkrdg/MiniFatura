@@ -26,15 +26,45 @@ import { frameHost } from '@farcaster/frame-sdk';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement);
 
-// RainbowKit config
+// ✅ RainbowKit + WalletConnect config
 const config = getDefaultConfig({
-  appName: 'WalletFee',
+  appName: 'WalletFee Tracker',
   projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID!,
   chains: [mainnet, polygon, optimism, arbitrum],
   ssr: true,
 });
 
 const queryClient = new QueryClient();
+
+// ✅ Mobil wallet deep-link base URLs
+const walletDeepLinkBase: Record<string, string> = {
+  metamask: 'https://metamask.app.link/wc?uri=',
+  trust: 'https://link.trustwallet.com/wc?uri=',
+  rainbow: 'https://rnbwapp.com/wc?uri=',
+  coinbase: 'https://go.cb-w.com/wc?uri=',
+  okx: 'okxwallet://wc?uri=',
+};
+
+function isFarcasterMobile() {
+  return typeof navigator !== 'undefined' && navigator.userAgent.includes('Warpcast');
+}
+
+// ✅ Frame splash fix
+async function initFrame() {
+  try {
+    if (frameHost && typeof (frameHost as any).ready === 'function') {
+      await (frameHost as any).ready();
+      console.log('✅ frameHost.ready() başarılı.');
+    } else if (frameHost?.actions?.ready) {
+      await frameHost.actions.ready();
+      console.log('✅ frameHost.actions.ready() başarılı.');
+    } else {
+      console.log('🌐 Web ortamı.');
+    }
+  } catch (e) {
+    console.error('❌ Frame init hatası:', e);
+  }
+}
 
 interface ChainStat {
   name: string;
@@ -50,27 +80,7 @@ function Dashboard() {
   const [selectedChain, setSelectedChain] = useState('Ethereum');
   const [loading, setLoading] = useState(false);
 
-  // ✅ Farcaster Frame splash fix
   useEffect(() => {
-    const initFrame = async () => {
-      try {
-        if (frameHost && typeof (frameHost as any).ready === 'function') {
-          await (frameHost as any).ready();
-          console.log('✅ frameHost.ready() çağrısı başarılı.');
-        } else if (
-          frameHost &&
-          (frameHost as any).actions &&
-          typeof (frameHost as any).actions.ready === 'function'
-        ) {
-          await (frameHost as any).actions.ready();
-          console.log('✅ frameHost.actions.ready() çağrısı başarılı.');
-        } else {
-          console.log('🌐 Web ortamı, frame değil.');
-        }
-      } catch (e) {
-        console.error('❌ Frame init hatası:', e);
-      }
-    };
     initFrame();
   }, []);
 
@@ -82,19 +92,19 @@ function Dashboard() {
   ];
 
   function classifyTransaction(tx: any): string {
-    if (tx.decoded && tx.decoded.name?.toLowerCase().includes('swap')) return 'Swap';
+    if (tx.decoded?.name?.toLowerCase().includes('swap')) return 'Swap';
     if (
       tx.log_events?.some(
         (log: any) =>
-          log.decoded?.name?.includes('Transfer') && log.sender_contract_decimals === 0
+          log.decoded?.name?.includes('Transfer') &&
+          log.sender_contract_decimals === 0
       )
     )
       return 'NFT Trade';
     return 'Transfer';
   }
 
-  // ✅ Covalent API ile zincir verilerini çek
-  const fetchAllTransactions = async (address: string, chainSlug: string) => {
+  async function fetchAllTransactions(address: string, chainSlug: string) {
     let page = 0;
     const pageSize = 1000;
     let allItems: any[] = [];
@@ -105,7 +115,6 @@ function Dashboard() {
         `https://api.covalenthq.com/v1/${chainSlug}/address/${address}/transactions_v2/?page-number=${page}&page-size=${pageSize}&key=${process.env.NEXT_PUBLIC_COVALENT_API_KEY}`
       );
       const data = await res.json();
-
       if (!data?.data?.items) break;
       allItems = allItems.concat(data.data.items);
       hasMore = data.data.pagination?.has_more || false;
@@ -113,32 +122,32 @@ function Dashboard() {
     }
 
     return allItems;
-  };
+  }
 
-  // ✅ Zincir verilerini hesapla ve DB'ye yaz
   useEffect(() => {
     if (!isConnected || !address) return;
 
     const fetchData = async () => {
       setLoading(true);
       try {
-        const promises = chains.map(async (chain) => {
-          const items = await fetchAllTransactions(address, chain.slug);
-          const categories: Record<string, { totalFee: number; count: number }> = {};
-          const fees = items.map((tx: any) => {
-            const feeEth = (tx.gas_price * tx.gas_spent) / 1e18;
-            const category = classifyTransaction(tx);
-            if (!categories[category])
-              categories[category] = { totalFee: 0, count: 0 };
-            categories[category].totalFee += feeEth;
-            categories[category].count += 1;
-            return feeEth;
-          });
-          const totalFee = fees.reduce((sum: number, f: number) => sum + f, 0);
-          return { name: chain.name, totalFee, txCount: items.length, fees, categories };
-        });
+        const results = await Promise.all(
+          chains.map(async (chain) => {
+            const items = await fetchAllTransactions(address, chain.slug);
+            const categories: Record<string, { totalFee: number; count: number }> = {};
+            const fees = items.map((tx: any) => {
+              const feeEth = (tx.gas_price * tx.gas_spent) / 1e18;
+              const category = classifyTransaction(tx);
+              if (!categories[category])
+                categories[category] = { totalFee: 0, count: 0 };
+              categories[category].totalFee += feeEth;
+              categories[category].count += 1;
+              return feeEth;
+            });
+            const totalFee = fees.reduce((s, f) => s + f, 0);
+            return { name: chain.name, totalFee, txCount: items.length, fees, categories };
+          })
+        );
 
-        const results = await Promise.all(promises);
         setChainStats(results);
 
         await supabase.from('wallet_stats').upsert({
@@ -199,7 +208,9 @@ function Dashboard() {
       <h1 className="text-3xl font-bold mb-6 text-indigo-700">
         Wallet Fee Tracker
       </h1>
+
       <ConnectButton />
+
       {isConnected && (
         <div className="mt-6 w-full max-w-3xl">
           {loading ? (
