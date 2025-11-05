@@ -1,6 +1,5 @@
 'use client';
 
-// RainbowKit importları, Wagmi importları, createConfig ve http
 import { WagmiProvider, useAccount, createConfig, http, useConnect, useDisconnect } from 'wagmi'; 
 import { mainnet, polygon, optimism, arbitrum } from 'wagmi/chains';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -36,14 +35,15 @@ interface ChainStat {
   categories: Record<string, { totalFee: number; count: number }>;
 }
 
-// ⬇️ WAGMI YAPILANDIRMASI ⬇️
+// ⬇️ WAGMI YAPILANDIRMASI: projectId KÖKTEN KALDIRILDI ⬇️
 const config = createConfig({
-  projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID!, 
+  // projectId burada kalmamalıdır, sadece konektörlere geçirilmelidir.
   
   connectors: [
     farcasterMiniApp(), 
     injected(),
     metaMask(),
+    // projectId sadece WalletConnect konektörüne veriliyor
     walletConnect({ projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID! }), 
   ],
   
@@ -55,17 +55,16 @@ const config = createConfig({
     [arbitrum.id]: http(),
   },
 });
-// ⬆️ CONFIG BİTTİ ⬆️
+// ⬆️ CONFIG DÜZELTİLDİ ⬆️
 
 
 const queryClient = new QueryClient();
 
 
-// ⬇️ ÖZEL BAĞLANTI BİLEŞENİ (useConnect Düzeltildi) ⬇️
+// ⬇️ ÖZEL BAĞLANTI BİLEŞENİ ⬇️
 function ConnectWalletButtons() {
   const { address, isConnected, connector: activeConnector } = useAccount();
   const { disconnect } = useDisconnect();
-  // Hata veren isLoading ve pendingConnector yerine isPending kullanıldı
   const { connect, connectors, isPending } = useConnect(); 
   
   const isMiniApp = typeof window !== 'undefined' && window.parent !== window;
@@ -100,7 +99,6 @@ function ConnectWalletButtons() {
           <button
             key={connector.uid}
             onClick={() => connect({ connector })}
-            // isPending genel bağlanma durumunu gösterir
             disabled={!connector.ready || isPending} 
             className={`px-4 py-2 rounded-lg text-white transition-colors 
               ${!connector.ready ? 'bg-gray-400' : 'bg-blue-600 hover:bg-blue-700'}`}
