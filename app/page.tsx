@@ -23,11 +23,9 @@ import {
 } from 'chart.js';
 import { supabase } from '../lib/supabaseClient';
 
-// Diğer importlarınızın altına ekleyin.
-// Varsayılan ve en güncel paket adını kullanıyoruz.
+// Farcaster Mini App SDK Import'u buraya eklendi
+// (npm install @farcaster/miniapp-sdk paketini kurduğunuz varsayılmıştır)
 import { sdk } from '@farcaster/miniapp-sdk'; 
-// import { useEffect, useState } from 'react'; // Zaten mevcut
-// ... diğer importlarınız ...
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement);
 
@@ -52,6 +50,24 @@ function Dashboard() {
   const [selectedChain, setSelectedChain] = useState<string>('Ethereum');
   const [chainStats, setChainStats] = useState<ChainStat[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
+
+  // ⬇️ YENİ EKLENEN KOD BLOKLARI: Farcaster Ready Sinyali ⬇️
+  useEffect(() => {
+    // Sadece tarayıcıda tanımlıysa ve bir iframe içinde (Mini App) çalışıyorsa ready çağrısını yap.
+    if (typeof window !== 'undefined' && window.parent !== window) {
+      try {
+        if (sdk && sdk.actions && sdk.actions.ready) {
+          // Uygulamanın yüklendiğini Farcaster istemcisine bildirir.
+          // Bu, splash ekranını kaldırır.
+          sdk.actions.ready();
+        }
+      } catch (e) {
+        // SDK yüklenmediyse bile uygulamanın çökmesini engellemek için hata yakalama.
+        console.error("Farcaster SDK ready çağrısı sırasında hata oluştu.");
+      }
+    }
+  }, []); // Sadece bir kez, bileşen yüklendiğinde çalışır.
+  // ⬆️ YENİ KOD BURADA BİTER ⬆️
 
   const chains = [
     { name: 'Ethereum', slug: 'eth-mainnet' },
