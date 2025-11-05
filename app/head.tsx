@@ -13,12 +13,9 @@ export default function Head() {
       />
       <meta property="og:image" content="https://mini-fatura.vercel.app/image.png" />
 
-      {/* ✅ Farcaster Frame Metadata */}
+      {/* Farcaster Frame metadata — sadece splash/görsel (buton yok) */}
       <meta name="fc:frame" content="vNext" />
       <meta name="fc:frame:image" content="https://mini-fatura.vercel.app/splash.png" />
-      <meta name="fc:frame:post_url" content="https://mini-fatura.vercel.app/api/webhook" />
-      <meta name="fc:frame:button:1" content="Start Tracking Fees" />
-      <meta name="fc:frame:button:1:action" content="post" />
     </>
   );
 }

@@ -26,6 +26,7 @@ import { frameHost } from '@farcaster/frame-sdk';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement);
 
+// 🌐 RainbowKit + Wagmi Config
 const config = getDefaultConfig({
   appName: 'WalletFee',
   projectId: 'YOUR_PROJECT_ID',
@@ -40,25 +41,48 @@ function Dashboard() {
   const [expenses, setExpenses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // ✅ Farcaster Frame Ready (mor ekran fix)
+  // ✅ Farcaster Frame Initialization (MOR ekran fix)
   useEffect(() => {
     const initFrame = async () => {
       try {
-        const host = await frameHost();
-        if (host) {
-          await host.ready();
-          console.log('✅ Farcaster Frame ready() çağrısı başarılı.');
-        } else {
-          console.log('🌐 Frame ortamı değil (web).');
+        console.log('🟣 Checking frameHost...');
+
+        // 1️⃣ Yeni SDK: frameHost.ready() direkt fonksiyon
+        if (frameHost && typeof (frameHost as any).ready === 'function') {
+          await (frameHost as any).ready();
+          console.log('✅ frameHost.ready() çağrısı başarılı.');
+          return;
         }
+
+        // 2️⃣ Eski SDK: frameHost.actions.ready()
+        if (
+          frameHost &&
+          (frameHost as any).actions &&
+          typeof (frameHost as any).actions.ready === 'function'
+        ) {
+          await (frameHost as any).actions.ready();
+          console.log('✅ frameHost.actions.ready() çağrısı başarılı.');
+          return;
+        }
+
+        // 3️⃣ Çok eski SDK fallback
+        if (typeof window !== 'undefined' && (window as any).sdk?.actions?.ready) {
+          (window as any).sdk.actions.ready();
+          console.log('✅ window.sdk.actions.ready() çağrısı tetiklendi.');
+          return;
+        }
+
+        // 4️⃣ Frame ortamı değilse web ortamında devam et
+        console.log('🌐 Frame ortamı değil, web modunda render ediliyor.');
       } catch (e) {
-        console.error('❌ Frame init hatası:', e);
+        console.error('❌ Frame init hatası (yakalandı):', e);
       }
     };
+
     initFrame();
   }, []);
 
-  // 📦 Supabase'den veri çek
+  // 📦 Supabase'den verileri çek
   useEffect(() => {
     const fetchExpenses = async () => {
       if (!isConnected || !address) return;
@@ -145,6 +169,7 @@ function Dashboard() {
   );
 }
 
+// 🌐 Root Provider Wrapper
 export default function Page() {
   return (
     <WagmiProvider config={config}>
