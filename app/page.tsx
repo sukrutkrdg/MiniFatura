@@ -22,13 +22,12 @@ import {
   ArcElement,
 } from 'chart.js';
 import { supabase } from '../lib/supabaseClient';
-import { frameHost } from '@farcaster/frame-sdk'; // ✅ Güncel SDK import
+import { frameHost } from '@farcaster/frame-sdk';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement);
 
-// Wagmi + RainbowKit Config
 const config = getDefaultConfig({
-  appName: 'Web3 Fatura Defteri',
+  appName: 'WalletFee',
   projectId: 'YOUR_PROJECT_ID',
   chains: [mainnet, polygon, optimism, arbitrum],
   ssr: true,
@@ -41,18 +40,22 @@ function Dashboard() {
   const [expenses, setExpenses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // ✅ Farcaster Frame Ready sinyali (mobilde mor ekranı kaldırır)
+  // ✅ Farcaster Frame Ready (mor ekran fix)
   useEffect(() => {
-    const init = async () => {
+    const initFrame = async () => {
       try {
         const host = await frameHost();
-        await host.ready();
-        console.log('✅ Farcaster frameHost ready() çağrısı başarılı.');
+        if (host) {
+          await host.ready();
+          console.log('✅ Farcaster Frame ready() çağrısı başarılı.');
+        } else {
+          console.log('🌐 Frame ortamı değil (web).');
+        }
       } catch (e) {
-        console.error('❌ Farcaster SDK ready çağrısı sırasında hata:', e);
+        console.error('❌ Frame init hatası:', e);
       }
     };
-    init();
+    initFrame();
   }, []);
 
   // 📦 Supabase'den veri çek
@@ -81,9 +84,9 @@ function Dashboard() {
     labels: Object.keys(categoryTotals),
     datasets: [
       {
-        label: 'Giderler (₺)',
+        label: 'Fees (Gwei)',
         data: Object.values(categoryTotals),
-        backgroundColor: '#4F46E5',
+        backgroundColor: '#6200EA',
       },
     ],
   };
@@ -93,52 +96,44 @@ function Dashboard() {
     datasets: [
       {
         data: Object.values(categoryTotals),
-        backgroundColor: [
-          '#4F46E5',
-          '#EC4899',
-          '#10B981',
-          '#F59E0B',
-          '#3B82F6',
-        ],
+        backgroundColor: ['#6200EA', '#EC4899', '#10B981', '#F59E0B', '#3B82F6'],
       },
     ],
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-purple-100 flex flex-col items-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100 flex flex-col items-center p-4">
       <div className="w-full max-w-3xl bg-white rounded-2xl shadow-lg p-6 mt-6">
         <div className="flex justify-between items-center mb-4">
-          <h1 className="text-2xl font-bold text-indigo-700">
-            Web3 Fatura Defteri
-          </h1>
+          <h1 className="text-2xl font-bold text-indigo-700">WalletFee Tracker</h1>
           <ConnectButton />
         </div>
 
         {!isConnected ? (
           <p className="text-center text-gray-600 mt-8">
-            Cüzdanınızı bağlayın.
+            Connect your wallet to track gas fees.
           </p>
         ) : loading ? (
-          <p className="text-center text-gray-600 mt-8">Yükleniyor...</p>
+          <p className="text-center text-gray-600 mt-8">Loading...</p>
         ) : expenses.length === 0 ? (
           <p className="text-center text-gray-600 mt-8">
-            Henüz gider bulunamadı.
+            No transactions found yet.
           </p>
         ) : (
           <>
             <p className="text-center text-gray-700 mb-4">
-              Toplam Gider: <b>{totalAmount.toFixed(2)} ₺</b>
+              Total Fees: <b>{totalAmount.toFixed(4)} ETH</b>
             </p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <h2 className="text-lg font-semibold text-indigo-600 mb-2">
-                  Kategorilere Göre Dağılım
+                  Breakdown by Category
                 </h2>
                 <Bar data={barData} />
               </div>
               <div>
                 <h2 className="text-lg font-semibold text-indigo-600 mb-2">
-                  Oransal Gösterim
+                  Proportional View
                 </h2>
                 <Pie data={pieData} />
               </div>
@@ -150,7 +145,6 @@ function Dashboard() {
   );
 }
 
-// ✅ Uygulamanın ana provider’ları
 export default function Page() {
   return (
     <WagmiProvider config={config}>
