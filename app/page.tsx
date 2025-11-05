@@ -4,9 +4,9 @@ import '@rainbow-me/rainbowkit/styles.css';
 import {
   getDefaultConfig,
   RainbowKitProvider,
-  // ConnectButton, 
+  ConnectButton,
 } from '@rainbow-me/rainbowkit';
-import { WagmiProvider, useAccount, createConfig, http } from 'wagmi'; // ⬅️ createConfig ve http eklendi
+import { WagmiProvider, useAccount } from 'wagmi';
 import { mainnet, polygon, optimism, arbitrum } from 'wagmi/chains';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
@@ -26,10 +26,6 @@ import { supabase } from '../lib/supabaseClient';
 // Farcaster Mini App SDK Import'u
 import { sdk } from '@farcaster/miniapp-sdk'; 
 
-// ⬇️ WAGMI KONEKTÖRÜ İMPORT EDİLİYOR ⬇️
-import { farcasterMiniApp } from '@farcaster/miniapp-wagmi-connector';
-
-
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement);
 
 interface ChainStat {
@@ -40,29 +36,11 @@ interface ChainStat {
   categories: Record<string, { totalFee: number; count: number }>;
 }
 
-// ⬇️ WAGMI YAPILANDIRMASI: getDefaultConfig yerine createConfig kullanıldı ⬇️
-const config = createConfig({
-  // Bu adlar Wagmi tarafından kullanılır
+const config = getDefaultConfig({
   appName: 'Web3 Fatura Defteri',
   projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID!,
-  
-  // createConfig'de 'connectors' özelliği geçerlidir
-  connectors: [
-    farcasterMiniApp(),
-    // Diğer standart konektörler (WalletConnect vb.) buraya eklenebilir
-  ],
-  
-  // createConfig kullanırken taşıyıcı (transport) manuel tanımlanmalı
   chains: [mainnet, polygon, optimism, arbitrum],
-  transports: {
-    [mainnet.id]: http(),
-    [polygon.id]: http(),
-    [optimism.id]: http(),
-    [arbitrum.id]: http(),
-  },
 });
-// ⬆️ CONFIG DÜZELTİLDİ ⬆️
-
 
 const queryClient = new QueryClient();
 
@@ -131,7 +109,6 @@ function Dashboard() {
 
   // 2. Veri Çekme Mantığı (Try/Catch/Finally ile Güçlendirildi)
   useEffect(() => {
-    // Mini Uygulama ortamında konektör doğru çalışacağı için artık isConnected/address kullanılabilir.
     if (!isConnected || !address) return;
 
     const fetchChainData = async () => {
@@ -174,8 +151,10 @@ function Dashboard() {
           updated_at: new Date().toISOString(),
         });
       } catch (error) {
+        // Hata yakalanırsa konsola yaz ve uygulamanın donmasını engelle.
         console.error("Veri çekme veya Supabase hatası:", error);
       } finally {
+        // Hata olsa da olmasa da loading durumunu kapatır.
         setLoading(false); 
       }
     };
@@ -223,9 +202,7 @@ function Dashboard() {
   return (
     <main className="flex flex-col items-center justify-center min-h-screen p-4 bg-gray-50">
       <h1 className="text-3xl font-bold mb-6">Web3 Fatura Defteri</h1>
-      {/* ConnectButton, Mini Uygulama ortamında sorun yarattığı şüphesiyle kaldırılmıştır. */}
-      {/* Cüzdan bağlantısı otomatik yapılmalıdır. */}
-      
+      <ConnectButton />
       {isConnected && (
         <div className="mt-6 w-full max-w-3xl">
           {loading ? (
@@ -314,7 +291,6 @@ function Dashboard() {
   );
 }
 
-// Home fonksiyonu eski haline getirildi, çünkü mantık artık confghgfhghgfhffig'de
 export default function Home() {
   return (
     <QueryClientProvider client={queryClient}>
