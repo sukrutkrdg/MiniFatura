@@ -9,6 +9,7 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@farcaster/frame-sdk": "^0.1.12",
     "@napi-rs/canvas": "^0.1.81",
     "@rainbow-me/rainbowkit": "^2.2.9",
     "@supabase/supabase-js": "^2.78.0",
