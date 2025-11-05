@@ -26,7 +26,7 @@ import { frameHost } from '@farcaster/frame-sdk';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement);
 
-// ✅ RainbowKit + WalletConnect config
+// ✅ RainbowKit Config
 const config = getDefaultConfig({
   appName: 'WalletFee Tracker',
   projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID!,
@@ -36,20 +36,18 @@ const config = getDefaultConfig({
 
 const queryClient = new QueryClient();
 
-// ✅ Mobil wallet deep-link base URLs
-const walletDeepLinkBase: Record<string, string> = {
+// ✅ Mobil wallet deep link templates
+const WALLET_LINKS: Record<string, string> = {
   metamask: 'https://metamask.app.link/wc?uri=',
   trust: 'https://link.trustwallet.com/wc?uri=',
-  rainbow: 'https://rnbwapp.com/wc?uri=',
-  coinbase: 'https://go.cb-w.com/wc?uri=',
   okx: 'okxwallet://wc?uri=',
+  coinbase: 'https://go.cb-w.com/wc?uri=',
 };
 
-function isFarcasterMobile() {
-  return typeof navigator !== 'undefined' && navigator.userAgent.includes('Warpcast');
+function isMobile() {
+  return /Mobi|Android/i.test(navigator.userAgent);
 }
 
-// ✅ Frame splash fix
 async function initFrame() {
   try {
     if (frameHost && typeof (frameHost as any).ready === 'function') {
@@ -79,6 +77,7 @@ function Dashboard() {
   const [chainStats, setChainStats] = useState<ChainStat[]>([]);
   const [selectedChain, setSelectedChain] = useState('Ethereum');
   const [loading, setLoading] = useState(false);
+  const [showWalletModal, setShowWalletModal] = useState(false);
 
   useEffect(() => {
     initFrame();
@@ -203,13 +202,57 @@ function Dashboard() {
     ],
   };
 
+  // ✅ Wallet modal handle
+  const handleWalletClick = (wallet: keyof typeof WALLET_LINKS) => {
+    const wcUri = encodeURIComponent(window.location.href);
+    const deepLink = `${WALLET_LINKS[wallet]}${wcUri}`;
+    window.location.href = deepLink;
+  };
+
   return (
     <main className="flex flex-col items-center justify-center min-h-screen p-4 bg-gray-50">
-      <h1 className="text-3xl font-bold mb-6 text-indigo-700">
-        Wallet Fee Tracker
-      </h1>
+      <h1 className="text-3xl font-bold mb-6 text-indigo-700">Wallet Fee Tracker</h1>
 
-      <ConnectButton />
+      {/* Mobilde özel connect modal */}
+      {isMobile() ? (
+        <>
+          <button
+            onClick={() => setShowWalletModal(true)}
+            className="bg-indigo-600 text-white px-6 py-3 rounded-xl shadow-md hover:bg-indigo-700 transition"
+          >
+            Cüzdanını Bağla
+          </button>
+
+          {showWalletModal && (
+            <div className="fixed inset-0 bg-black/50 flex items-end justify-center z-50">
+              <div className="bg-white w-full rounded-t-2xl p-6 shadow-lg">
+                <h2 className="text-lg font-semibold text-center mb-4">
+                  Cüzdanını Seç
+                </h2>
+                <div className="grid grid-cols-2 gap-4">
+                  {Object.keys(WALLET_LINKS).map((wallet) => (
+                    <button
+                      key={wallet}
+                      onClick={() => handleWalletClick(wallet as keyof typeof WALLET_LINKS)}
+                      className="border rounded-xl p-3 text-sm font-medium hover:bg-indigo-50 transition"
+                    >
+                      {wallet.charAt(0).toUpperCase() + wallet.slice(1)} Wallet
+                    </button>
+                  ))}
+                </div>
+                <button
+                  onClick={() => setShowWalletModal(false)}
+                  className="mt-4 w-full text-center text-gray-500"
+                >
+                  Kapat
+                </button>
+              </div>
+            </div>
+          )}
+        </>
+      ) : (
+        <ConnectButton />
+      )}
 
       {isConnected && (
         <div className="mt-6 w-full max-w-3xl">
