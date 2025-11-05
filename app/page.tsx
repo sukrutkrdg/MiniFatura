@@ -4,9 +4,9 @@ import '@rainbow-me/rainbowkit/styles.css';
 import {
   getDefaultConfig,
   RainbowKitProvider,
-  // ConnectButton, <-- Zaten kaldırılmış/iptal edilmiş
+  // ConnectButton, 
 } from '@rainbow-me/rainbowkit';
-import { WagmiProvider, useAccount } from 'wagmi';
+import { WagmiProvider, useAccount, createConfig, http } from 'wagmi'; // ⬅️ createConfig ve http eklendi
 import { mainnet, polygon, optimism, arbitrum } from 'wagmi/chains';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
@@ -26,6 +26,10 @@ import { supabase } from '../lib/supabaseClient';
 // Farcaster Mini App SDK Import'u
 import { sdk } from '@farcaster/miniapp-sdk'; 
 
+// ⬇️ WAGMI KONEKTÖRÜ İMPORT EDİLİYOR ⬇️
+import { farcasterMiniApp } from '@farcaster/miniapp-wagmi-connector';
+
+
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement);
 
 interface ChainStat {
@@ -36,11 +40,29 @@ interface ChainStat {
   categories: Record<string, { totalFee: number; count: number }>;
 }
 
-const config = getDefaultConfig({
+// ⬇️ WAGMI YAPILANDIRMASI: getDefaultConfig yerine createConfig kullanıldı ⬇️
+const config = createConfig({
+  // Bu adlar Wagmi tarafından kullanılır
   appName: 'Web3 Fatura Defteri',
   projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID!,
+  
+  // createConfig'de 'connectors' özelliği geçerlidir
+  connectors: [
+    farcasterMiniApp(),
+    // Diğer standart konektörler (WalletConnect vb.) buraya eklenebilir
+  ],
+  
+  // createConfig kullanırken taşıyıcı (transport) manuel tanımlanmalı
   chains: [mainnet, polygon, optimism, arbitrum],
+  transports: {
+    [mainnet.id]: http(),
+    [polygon.id]: http(),
+    [optimism.id]: http(),
+    [arbitrum.id]: http(),
+  },
 });
+// ⬆️ CONFIG DÜZELTİLDİ ⬆️
+
 
 const queryClient = new QueryClient();
 
@@ -51,7 +73,6 @@ function Dashboard() {
   const [loading, setLoading] = useState<boolean>(false);
 
   // 1. Farcaster Ready Sinyali (Splash Screen'i Kaldırır)
-  // Bu çağrı artık Wagmi/RainbowKit'in donmasını beklemeyecek.
   useEffect(() => {
     if (typeof window !== 'undefined' && window.parent !== window) {
       try {
@@ -110,8 +131,7 @@ function Dashboard() {
 
   // 2. Veri Çekme Mantığı (Try/Catch/Finally ile Güçlendirildi)
   useEffect(() => {
-    // Mini Uygulama ortamında bu değerler başlangıçta false/undefined olabilir.
-    // Veri çekme işlemi sadece bağlı cüzdan varsa yapılır.
+    // Mini Uygulama ortamında konektör doğru çalışacağı için artık isConnected/address kullanılabilir.
     if (!isConnected || !address) return;
 
     const fetchChainData = async () => {
@@ -204,7 +224,7 @@ function Dashboard() {
     <main className="flex flex-col items-center justify-center min-h-screen p-4 bg-gray-50">
       <h1 className="text-3xl font-bold mb-6">Web3 Fatura Defteri</h1>
       {/* ConnectButton, Mini Uygulama ortamında sorun yarattığı şüphesiyle kaldırılmıştır. */}
-      {/* <ConnectButton /> */} 
+      {/* Cüzdan bağlantısı otomatik yapılmalıdır. */}
       
       {isConnected && (
         <div className="mt-6 w-full max-w-3xl">
@@ -294,21 +314,8 @@ function Dashboard() {
   );
 }
 
+// Home fonksiyonu eski haline getirildi, çünkü mantık artık config'de
 export default function Home() {
-  // ⬇️ BURADAKİ DEĞİŞİKLİK SORUNUNUZU ÇÖZMELİ ⬇️
-  // Mini Uygulama ortamını kontrol et
-  const isMiniApp = typeof window !== 'undefined' && window.parent !== window;
-
-  if (isMiniApp) {
-    // Mini Uygulama Ortamı: Wagmi/RainbowKit sarmalayıcılarını atla
-    return (
-      <QueryClientProvider client={queryClient}>
-        <Dashboard />
-      </QueryClientProvider>
-    );
-  }
-
-  // Normal Web Ortamı: Tam sarmalayıcı yığınını kullan
   return (
     <QueryClientProvider client={queryClient}>
       <WagmiProvider config={config}>
