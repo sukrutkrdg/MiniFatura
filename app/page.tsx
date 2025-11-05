@@ -1,6 +1,12 @@
 'use client';
 
-import { WagmiProvider, useAccount, createConfig, http, useConnect, useDisconnect } from 'wagmi'; 
+import '@rainbow-me/rainbowkit/styles.css';
+import {
+  getDefaultConfig,
+  RainbowKitProvider,
+  ConnectButton,
+} from '@rainbow-me/rainbowkit';
+import { WagmiProvider, useAccount } from 'wagmi';
 import { mainnet, polygon, optimism, arbitrum } from 'wagmi/chains';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
@@ -20,11 +26,6 @@ import { supabase } from '../lib/supabaseClient';
 // Farcaster Mini App SDK Import'u
 import { sdk } from '@farcaster/miniapp-sdk'; 
 
-// WAGMI KONEKTÖRÜ İMPORT EDİLİYOR
-import { farcasterMiniApp } from '@farcaster/miniapp-wagmi-connector';
-import { injected, walletConnect, metaMask } from 'wagmi/connectors';
-
-
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement);
 
 interface ChainStat {
@@ -35,83 +36,13 @@ interface ChainStat {
   categories: Record<string, { totalFee: number; count: number }>;
 }
 
-// ⬇️ WAGMI YAPILANDIRMASI: projectId KÖKTEN KALDIRILDI ⬇️
-const config = createConfig({
-  // projectId burada kalmamalıdır, sadece konektörlere geçirilmelidir.
-  
-  connectors: [
-    farcasterMiniApp(), 
-    injected(),
-    metaMask(),
-    // projectId sadece WalletConnect konektörüne veriliyor
-    walletConnect({ projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID! }), 
-  ],
-  
+const config = getDefaultConfig({
+  appName: 'Web3 Fatura Defteri',
+  projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID!,
   chains: [mainnet, polygon, optimism, arbitrum],
-  transports: {
-    [mainnet.id]: http(),
-    [polygon.id]: http(),
-    [optimism.id]: http(),
-    [arbitrum.id]: http(),
-  },
 });
-// ⬆️ CONFIG DÜZELTİLDİ ⬆️
-
 
 const queryClient = new QueryClient();
-
-
-// ⬇️ ÖZEL BAĞLANTI BİLEŞENİ ⬇️
-function ConnectWalletButtons() {
-  const { address, isConnected, connector: activeConnector } = useAccount();
-  const { disconnect } = useDisconnect();
-  const { connect, connectors, isPending } = useConnect(); 
-  
-  const isMiniApp = typeof window !== 'undefined' && window.parent !== window;
-
-  if (isConnected) {
-    return (
-      <div className="flex flex-col items-center gap-2 mb-4">
-        <p className="text-sm text-green-700">Bağlı: {activeConnector?.name || "Mini App Cüzdanı"}</p>
-        <button
-          onClick={() => disconnect()}
-          className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
-        >
-          Bağlantıyı Kes
-        </button>
-      </div>
-    );
-  }
-  
-  if (isMiniApp) {
-    return (
-      <p className="text-sm text-blue-600 bg-blue-100 p-3 rounded-md mb-4">
-        Mini Uygulama ortamında cüzdan otomatik bağlanır. Lütfen Farcaster/Base App içindeki cüzdanınızın aktif olduğundan emin olun.
-      </p>
-    );
-  }
-
-  // Web ortamında tüm konektörleri listele
-  return (
-    <div className="flex flex-wrap justify-center gap-3 mb-4">
-      {connectors
-        .map((connector) => (
-          <button
-            key={connector.uid}
-            onClick={() => connect({ connector })}
-            disabled={!connector.ready || isPending} 
-            className={`px-4 py-2 rounded-lg text-white transition-colors 
-              ${!connector.ready ? 'bg-gray-400' : 'bg-blue-600 hover:bg-blue-700'}`}
-          >
-            {connector.name}
-            {isPending && ' (Bağlanıyor...)'} 
-          </button>
-        ))}
-    </div>
-  );
-}
-// ⬆️ ÖZEL BAĞLANTI BİLEŞENİ BİTTİ ⬆️
-
 
 function Dashboard() {
   const { address, isConnected } = useAccount();
@@ -220,8 +151,10 @@ function Dashboard() {
           updated_at: new Date().toISOString(),
         });
       } catch (error) {
+        // Hata yakalanırsa konsola yaz ve uygulamanın donmasını engelle.
         console.error("Veri çekme veya Supabase hatası:", error);
       } finally {
+        // Hata olsa da olmasa da loading durumunu kapatır.
         setLoading(false); 
       }
     };
@@ -269,10 +202,7 @@ function Dashboard() {
   return (
     <main className="flex flex-col items-center justify-center min-h-screen p-4 bg-gray-50">
       <h1 className="text-3xl font-bold mb-6">Web3 Fatura Defteri</h1>
-      
-      {/* ⬇️ BAĞLANTI BUTONLARI BURADA KULLANILIYOR ⬇️ */}
-      <ConnectWalletButtons />
-      
+      <ConnectButton />
       {isConnected && (
         <div className="mt-6 w-full max-w-3xl">
           {loading ? (
@@ -365,8 +295,11 @@ export default function Home() {
   return (
     <QueryClientProvider client={queryClient}>
       <WagmiProvider config={config}>
+        <RainbowKitProvider>
           <Dashboard />
+        </RainbowKitProvider>
       </WagmiProvider>
     </QueryClientProvider>
   );
 }
+
