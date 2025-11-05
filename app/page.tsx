@@ -4,7 +4,7 @@ import '@rainbow-me/rainbowkit/styles.css';
 import {
   getDefaultConfig,
   RainbowKitProvider,
-  // ConnectButton, <-- Zaten kaldırılmış/iptal edilmiş
+  ConnectButton,
 } from '@rainbow-me/rainbowkit';
 import { WagmiProvider, useAccount } from 'wagmi';
 import { mainnet, polygon, optimism, arbitrum } from 'wagmi/chains';
@@ -51,7 +51,6 @@ function Dashboard() {
   const [loading, setLoading] = useState<boolean>(false);
 
   // 1. Farcaster Ready Sinyali (Splash Screen'i Kaldırır)
-  // Bu çağrı artık Wagmi/RainbowKit'in donmasını beklemeyecek.
   useEffect(() => {
     if (typeof window !== 'undefined' && window.parent !== window) {
       try {
@@ -110,8 +109,6 @@ function Dashboard() {
 
   // 2. Veri Çekme Mantığı (Try/Catch/Finally ile Güçlendirildi)
   useEffect(() => {
-    // Mini Uygulama ortamında bu değerler başlangıçta false/undefined olabilir.
-    // Veri çekme işlemi sadece bağlı cüzdan varsa yapılır.
     if (!isConnected || !address) return;
 
     const fetchChainData = async () => {
@@ -154,8 +151,10 @@ function Dashboard() {
           updated_at: new Date().toISOString(),
         });
       } catch (error) {
+        // Hata yakalanırsa konsola yaz ve uygulamanın donmasını engelle.
         console.error("Veri çekme veya Supabase hatası:", error);
       } finally {
+        // Hata olsa da olmasa da loading durumunu kapatır.
         setLoading(false); 
       }
     };
@@ -203,9 +202,7 @@ function Dashboard() {
   return (
     <main className="flex flex-col items-center justify-center min-h-screen p-4 bg-gray-50">
       <h1 className="text-3xl font-bold mb-6">Web3 Fatura Defteri</h1>
-      {/* ConnectButton, Mini Uygulama ortamında sorun yarattığı şüphesiyle kaldırılmıştır. */}
-      {/* <ConnectButton /> */} 
-      
+      <ConnectButton />
       {isConnected && (
         <div className="mt-6 w-full max-w-3xl">
           {loading ? (
@@ -295,20 +292,6 @@ function Dashboard() {
 }
 
 export default function Home() {
-  // ⬇️ BURADAKİ DEĞİŞİKLİK SORUNUNUZU ÇÖZMELİ ⬇️
-  // Mini Uygulama ortamını kontrol et
-  const isMiniApp = typeof window !== 'undefined' && window.parent !== window;
-
-  if (isMiniApp) {
-    // Mini Uygulama Ortamı: Wagmi/RainbowKit sarmalayıcılarını atla
-    return (
-      <QueryClientProvider client={queryClient}>
-        <Dashboard />
-      </QueryClientProvider>
-    );
-  }
-
-  // Normal Web Ortamı: Tam sarmalayıcı yığınını kullan
   return (
     <QueryClientProvider client={queryClient}>
       <WagmiProvider config={config}>
