@@ -314,7 +314,7 @@ function Dashboard() {
   );
 }
 
-// Home fonksiyonu eski haline getirildi, çünkü mantık artık config'de
+// Home fonksiyonu eski haline getirildi, çünkü mantık artık confghgfhghgfhffig'de
 export default function Home() {
   return (
     <QueryClientProvider client={queryClient}>
