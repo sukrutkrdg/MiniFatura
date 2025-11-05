@@ -20,6 +20,8 @@ import { supabase } from '../lib/supabaseClient';
 
 // Farcaster Mini App SDK Import'u
 import { sdk } from '@farcaster/miniapp-sdk'; 
+
+// WAGMI KONEKTÖRÜ İMPORT EDİLİYOR
 import { farcasterMiniApp } from '@farcaster/miniapp-wagmi-connector';
 import { injected, walletConnect, metaMask } from 'wagmi/connectors';
 
@@ -34,16 +36,15 @@ interface ChainStat {
   categories: Record<string, { totalFee: number; count: number }>;
 }
 
-// ⬇️ WAGMI YAPILANDIRMASI: Hata veren projectId KÖK KISIMDAN KALDIRILDI ⬇️
+// ⬇️ WAGMI YAPILANDIRMASI ⬇️
 const config = createConfig({
-  // projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID!, <-- ARTIK BURADA DEĞİL
+  projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID!, 
   
-  // Connectors: projectId, konektörlerin içine taşındı
   connectors: [
     farcasterMiniApp(), 
     injected(),
     metaMask(),
-    walletConnect({ projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID! }), // Sadece bu konektörde tanımlı
+    walletConnect({ projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID! }), 
   ],
   
   chains: [mainnet, polygon, optimism, arbitrum],
@@ -54,17 +55,18 @@ const config = createConfig({
     [arbitrum.id]: http(),
   },
 });
-// ⬆️ CONFIG DÜZELTİLDİ ⬆️
+// ⬆️ CONFIG BİTTİ ⬆️
 
 
 const queryClient = new QueryClient();
 
 
-// ⬇️ ÖZEL BAĞLANTI BİLEŞENİ ⬇️
+// ⬇️ ÖZEL BAĞLANTI BİLEŞENİ (useConnect Düzeltildi) ⬇️
 function ConnectWalletButtons() {
   const { address, isConnected, connector: activeConnector } = useAccount();
   const { disconnect } = useDisconnect();
-  const { connect, connectors, isLoading, pendingConnector } = useConnect();
+  // Hata veren isLoading ve pendingConnector yerine isPending kullanıldı
+  const { connect, connectors, isPending } = useConnect(); 
   
   const isMiniApp = typeof window !== 'undefined' && window.parent !== window;
 
@@ -98,12 +100,13 @@ function ConnectWalletButtons() {
           <button
             key={connector.uid}
             onClick={() => connect({ connector })}
-            disabled={!connector.ready || (isLoading && connector.id === pendingConnector?.id)}
+            // isPending genel bağlanma durumunu gösterir
+            disabled={!connector.ready || isPending} 
             className={`px-4 py-2 rounded-lg text-white transition-colors 
               ${!connector.ready ? 'bg-gray-400' : 'bg-blue-600 hover:bg-blue-700'}`}
           >
             {connector.name}
-            {isLoading && connector.id === pendingConnector?.id && ' (Bağlanıyor...)'}
+            {isPending && ' (Bağlanıyor...)'} 
           </button>
         ))}
     </div>
@@ -360,7 +363,6 @@ function Dashboard() {
   );
 }
 
-// Home fonksiyonu
 export default function Home() {
   return (
     <QueryClientProvider client={queryClient}>
