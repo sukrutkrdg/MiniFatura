@@ -5,7 +5,7 @@ import {
   getDefaultConfig,
   RainbowKitProvider,
 } from '@rainbow-me/rainbowkit';
-import { WagmiProvider, useAccount, createConfig, http } from 'wagmi'; // ⬅️ createConfig ve http eklendi
+import { WagmiProvider, useAccount, createConfig, http } from 'wagmi'; // createConfig ve http import edildi
 import { mainnet, polygon, optimism, arbitrum } from 'wagmi/chains';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
@@ -25,7 +25,7 @@ import { supabase } from '../lib/supabaseClient';
 // Farcaster Mini App SDK Import'u
 import { sdk } from '@farcaster/miniapp-sdk'; 
 
-// ⬇️ WAGMI KONEKTÖRÜ İMPORT EDİLİYOR ⬇️
+// WAGMI KONEKTÖRÜ İMPORT EDİLİYOR
 import { farcasterMiniApp } from '@farcaster/miniapp-wagmi-connector';
 
 
@@ -39,15 +39,15 @@ interface ChainStat {
   categories: Record<string, { totalFee: number; count: number }>;
 }
 
-// ⬇️ WAGMI YAPILANDIRMASI: createConfig kullanılarak farcasterMiniApp konektörü eklendi ⬇️
+// ⬇️ WAGMI YAPILANDIRMASI: Hata veren appName ve projectId kaldırıldı ⬇️
 const config = createConfig({
-  appName: 'Web3 Fatura Defteri',
-  projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID!,
+  // appName ve projectId hatalı olduğu için kökten kaldırıldı.
+  // Bu bilgiler RainbowKit'in kendisi veya konektörler tarafından otomatik olarak kullanılır.
   
-  // Connectors, Mini App ortamında doğru cüzdanı bulmayı sağlar.
+  // Farcaster Mini App konektörü eklenerek mobil kilitlenme çözüldü.
   connectors: [
     farcasterMiniApp(),
-    // Diğer standart RainbowKit konektörleri burada devam edebilir.
+    // Diğer standart konektörler (WalletConnect vb.) buraya eklenebilir.
   ],
   
   // createConfig kullanırken taşıyıcı (transport) manuel tanımlanmalı
@@ -316,7 +316,7 @@ function Dashboard() {
   );
 }
 
-// Home fonksiyonu artık koşulsuz olarak tüm sağlayıcıları sarar.
+// Home fonksiyonu eski haline getirildi, çünkü mantık artık config'de
 export default function Home() {
   return (
     <QueryClientProvider client={queryClient}>
