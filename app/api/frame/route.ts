@@ -15,8 +15,15 @@ export async function GET(req: Request) {
     .eq('wallet_address', wallet)
     .single();
 
-  const totalFee = data?.total_fee || '0 ETH';
-  const topCategory = data?.top_category || 'Transfer';
+  // GÜNCELLEME (Madde 4): 
+  // Supabase'den veri gelmezse (kullanıcı henüz uygulamayı ziyaret etmemişse)
+  // varsayılan bir görsel oluşturmak için özel değerler yolla.
+  const totalFee = data?.total_fee ? `$${data.total_fee.toFixed(2)} USD` : 'Veri Yok';
+  const topCategory = data?.top_category || 'Hesaplanmadı';
+  
+  // GÜNCELLEME (Madde 4): Sitenizin vercel.app URL'sini sabit olarak ekledim.
+  // 'yourdomain.com' yerine kendi URL'nizi kullanmalısınız.
+  const baseUrl = 'https://mini-fatura.vercel.app'; // Burayı kendi Vercel URL'niz ile değiştirin
 
   return new NextResponse(
     `
@@ -24,12 +31,12 @@ export async function GET(req: Request) {
     <html>
       <head>
         <meta property="og:title" content="Web3 Fatura Özeti" />
-        <meta property="og:image" content="https://yourdomain.com/api/frame-image?fee=${totalFee}&category=${topCategory}" />
+        <meta property="og:image" content="${baseUrl}/api/frame-image?fee=${encodeURIComponent(totalFee)}&category=${encodeURIComponent(topCategory)}" />
         <meta property="fc:frame" content="vNext" />
-        <meta property="fc:frame:image" content="https://yourdomain.com/api/frame-image?fee=${totalFee}&category=${topCategory}" />
-        <meta property="fc:frame:button:1" content="Detayları Gör" />
+        <meta property="fc:frame:image" content="${baseUrl}/api/frame-image?fee=${encodeURIComponent(totalFee)}&category=${encodeURIComponent(topCategory)}" />
+        <meta property="fc:frame:button:1" content="Harcamalarını Gör" /> 
         <meta property="fc:frame:button:1:action" content="link" />
-        <meta property="fc:frame:button:1:target" content="https://yourdomain.com" />
+        <meta property="fc:frame:button:1:target" content="${baseUrl}" />
       </head>
       <body></body>
     </html>
