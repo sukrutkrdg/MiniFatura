@@ -30,7 +30,6 @@ ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend,
 // ✅ RainbowKit Config
 const config = getDefaultConfig({
   appName: 'WalletFee Tracker',
-  // GÜVENLİK: API Key'i buradan SİLDİK. Artık gerekli değil.
   projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID!,
   chains: [mainnet, polygon, optimism, arbitrum, base],
   ssr: true,
@@ -70,11 +69,20 @@ async function initFrame() {
   }
 }
 
+// Madde 2: İşlem arayüzü
+interface TopTx {
+  tx_hash: string;
+  feeUSD: number;
+  category: string;
+  date: string;
+}
+
 interface ChainStat {
   name: string;
   totalFeeUSD: number;
   txCount: number;
   categories: Record<string, { totalFeeUSD: number; count: number }>;
+  topTransactions: TopTx[]; // Madde 2: İşlem listesi eklendi
 }
 
 function Dashboard() {
@@ -85,41 +93,51 @@ function Dashboard() {
   const [showWalletModal, setShowWalletModal] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
-  // GÜVENLİK: 'chains' dizisi artık sunucu tarafında (api/process-wallet)
-  // Sadece UI'da göstermek için (veya sunucudan gelen yanıta göre) tutabiliriz
-  // Şimdilik gelen veriden alacağız.
+  // Madde 4: Başarısız zincirleri takip etmek için yeni state
+  const [failedChains, setFailedChains] = useState<string[]>([]);
+  
+  // Madde 3: Tarih filtresi için yeni state
+  const [daysFilter, setDaysFilter] = useState('all'); // 'all', '30', '7'
+
   const chainNames = chainStats.map(c => c.name);
 
   useEffect(() => {
     initFrame();
   }, []);
 
-  // GÜVENLİK: Tüm veri çekme ve sınıflandırma fonksiyonları buradan kaldırıldı.
-
   useEffect(() => {
     if (!isConnected || !address) {
-      setChainStats([]); // Cüzdan bağlantısı kesilirse veriyi temizle
+      setChainStats([]);
+      setFailedChains([]);
+      setError(null);
+      setLoading(false);
       return;
     }
 
     const fetchData = async () => {
       setLoading(true);
       setError(null);
+      setFailedChains([]); // Her istekte sıfırla
 
       try {
-        // GÜVENLİK: Tüm mantık sunucuya taşındı. Sadece API'yi çağırıyoruz.
-        const res = await fetch(`/api/process-wallet?address=${address}`);
+        // Madde 3: Tarih filtresini API isteğine ekle
+        const filterParam = (daysFilter !== 'all') ? `&days=${daysFilter}` : '';
+        const res = await fetch(`/api/process-wallet?address=${address}${filterParam}`);
         
-        if (!res.ok) {
-          const errorData = await res.json();
-          throw new Error(errorData.error || 'Failed to fetch wallet data from server');
-        }
-
         const data = await res.json();
         
+        if (!res.ok) {
+          throw new Error(data.error || 'Failed to fetch wallet data from server');
+        }
+
         setChainStats(data.chainStats);
-        // Varsayılan seçili zinciri ayarla
-        if (data.chainStats.length > 0 && !chainNames.includes(selectedChain)) {
+        
+        // Madde 4: Başarısız zincirleri state'e kaydet
+        if (data.failedChains && data.failedChains.length > 0) {
+            setFailedChains(data.failedChains);
+        }
+        
+        if (data.chainStats.length > 0 && !data.chainStats.find((c: ChainStat) => c.name === selectedChain)) {
             setSelectedChain(data.chainStats[0].name);
         }
 
@@ -136,7 +154,7 @@ function Dashboard() {
     };
 
     fetchData();
-  }, [address, isConnected]); // 'selectedChain'i bağımlılıktan kaldırdık
+  }, [address, isConnected, daysFilter]); // Madde 3: daysFilter'ı bağımlılıklara ekle
 
   const selectedData = chainStats.find((s) => s.name === selectedChain);
 
@@ -227,44 +245,108 @@ function Dashboard() {
                 <p><strong>Error!</strong></p>
                 <p>{error}</p>
             </div>
-          ) : chainStats.length > 0 ? ( // Sadece veri varsa grafikleri göster
+          ) : (
             <>
-              <div className="mt-4">
-                <label className="mr-2">Select Chain:</label>
-                <select
-                  value={selectedChain}
-                  onChange={(e) => setSelectedChain(e.target.value)}
-                  className="border p-2 rounded"
-                >
-                  {chainNames.map((name) => (
-                    <option key={name} value={name}>
-                      {name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {selectedData && (
-                <>
-                  <p className="mt-4">
-                    Total Spend ({selectedData.name}):{' '}
-                    <strong>${selectedData.totalFeeUSD.toFixed(2)} USD</strong>
-                  </p>
-                  <p>
-                    Total Transactions: <strong>{selectedData.txCount}</strong>
-                  </p>
-                  
-                  <h2 className="text-lg font-semibold mt-8">{selectedData.name} - Spend by Category</h2>
-                  <Pie data={categoryChartData} className="mt-6" />
-                </>
+              {/* Madde 4: Başarısız zincirler için uyarı */}
+              {failedChains.length > 0 && (
+                <div className="text-center p-3 mb-4 bg-yellow-100 text-yellow-800 rounded-lg">
+                  <p><strong>Warning:</strong> Data for the following chains could not be loaded: {failedChains.join(', ')}.</p>
+                </div>
               )}
 
-              <h2 className="text-lg font-semibold mt-8">Total Spend by Chain (USD)</h2>
-              <Bar data={chainChartData} className="mt-2" />
+              {chainStats.length > 0 ? (
+                <>
+                  {/* Madde 3: Tarih Filtresi UI */}
+                  <div className="flex justify-between items-center mt-4">
+                    <div>
+                      <label className="mr-2">Select Chain:</label>
+                      <select
+                        value={selectedChain}
+                        onChange={(e) => setSelectedChain(e.target.value)}
+                        className="border p-2 rounded"
+                      >
+                        {chainNames.map((name) => (
+                          <option key={name} value={name}>
+                            {name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="mr-2">Date Range:</label>
+                      <select
+                        value={daysFilter}
+                        onChange={(e) => setDaysFilter(e.target.value)}
+                        className="border p-2 rounded"
+                      >
+                        <option value="all">All Time</option>
+                        <option value="30">Last 30 Days</option>
+                        <option value="7">Last 7 Days</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {selectedData && (
+                    <>
+                      <p className="mt-4">
+                        Total Spend ({selectedData.name}):{' '}
+                        <strong>${selectedData.totalFeeUSD.toFixed(2)} USD</strong>
+                      </p>
+                      <p>
+                        Total Transactions: <strong>{selectedData.txCount}</strong>
+                      </p>
+                      
+                      <h2 className="text-lg font-semibold mt-8">{selectedData.name} - Spend by Category</h2>
+                      <Pie data={categoryChartData} className="mt-6" />
+                    </>
+                  )}
+
+                  <h2 className="text-lg font-semibold mt-8">Total Spend by Chain (USD)</h2>
+                  <Bar data={chainChartData} className="mt-2" />
+
+                  {/* Madde 2: Detaylı İşlem Listesi */}
+                  {selectedData && selectedData.topTransactions.length > 0 && (
+                    <>
+                      <h2 className="text-lg font-semibold mt-8">Top 10 Expensive Transactions on {selectedData.name}</h2>
+                      <div className="overflow-x-auto mt-2">
+                        <table className="min-w-full divide-y divide-gray-200">
+                          <thead className="bg-gray-100">
+                            <tr>
+                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Category</th>
+                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Fee (USD)</th>
+                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Hash</th>
+                            </tr>
+                          </thead>
+                          <tbody className="bg-white divide-y divide-gray-200">
+                            {selectedData.topTransactions.map((tx) => (
+                              <tr key={tx.tx_hash}>
+                                <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-800">{new Date(tx.date).toLocaleDateString()}</td>
+                                <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-800">{tx.category}</td>
+                                <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-800">${tx.feeUSD.toFixed(2)}</td>
+                                <td className="px-4 py-2 whitespace-nowrap text-sm">
+                                  <a 
+                                    href={`https://etherscan.io/tx/${tx.tx_hash}`} // Not: Bu link sadece Eth/Base için çalışır. Zincire göre dinamik olmalı
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    className="text-indigo-600 hover:text-indigo-900"
+                                  >
+                                    {tx.tx_hash.substring(0, 10)}...
+                                  </a>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </>
+                  )}
+                </>
+              ) : (
+                 // Cüzdan bağlı ama veri (henüz) yok
+                 <></>
+              )}
             </>
-          ) : (
-             // Cüzdan bağlı ama veri yoksa (henüz yüklenmediyse veya boşsa)
-             <></>
           )}
         </div>
       )}
