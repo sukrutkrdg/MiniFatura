@@ -84,15 +84,13 @@ function Dashboard() {
   const [showWalletModal, setShowWalletModal] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
-  // ZİNCİR ADI DÜZELTME: 'polygon-mainnet' -> 'matic-mainnet' olarak değiştirildi.
   const chains = [
     { name: 'Ethereum', slug: 'eth-mainnet' },
-    { name: 'Polygon', slug: 'matic-mainnet' }, // <-- HATA BURADAYDI, DÜZELTİLDİ
+    { name: 'Polygon', slug: 'matic-mainnet' }, // Düzeltildi
     { name: 'Optimism', slug: 'optimism-mainnet' },
     { name: 'Arbitrum', slug: 'arbitrum-mainnet' },
     { name: 'Base', slug: 'base-mainnet' },
   ];
-  // ZİNCİR ADI DÜZELTME BİTİŞ
 
   useEffect(() => {
     initFrame();
@@ -192,8 +190,14 @@ function Dashboard() {
             const categories: Record<string, { totalFeeUSD: number; count: number }> = {};
             
             const feesUSD = items.map((tx: any) => {
-              const feeUSD = tx.fees_paid_usd || 0; 
               
+              // USD HESAPLAMA DÜZELTMESİ:
+              // tx.fees_paid_usd alanı (bazen null/0 geliyor) yerine manuel hesaplama yapıyoruz.
+              const feeInNativeToken = (tx.fees_paid || 0) / 1e18; // Ücret, Wei'den normale çevrildi
+              const gasRateUSD = tx.gas_quote_rate || 0; // 1 yerel token'in USD fiyatı
+              const feeUSD = feeInNativeToken * gasRateUSD;
+              // USD HESAPLAMA DÜZELTMESİ BİTİŞ
+
               const category = classifyTransaction(tx);
               if (!categories[category])
                 categories[category] = { totalFeeUSD: 0, count: 0 };
