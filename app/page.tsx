@@ -84,13 +84,15 @@ function Dashboard() {
   const [showWalletModal, setShowWalletModal] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
+  // ZİNCİR ADI DÜZELTME: 'polygon-mainnet' -> 'matic-mainnet' olarak değiştirildi.
   const chains = [
     { name: 'Ethereum', slug: 'eth-mainnet' },
-    { name: 'Polygon', slug: 'polygon-mainnet' },
+    { name: 'Polygon', slug: 'matic-mainnet' }, // <-- HATA BURADAYDI, DÜZELTİLDİ
     { name: 'Optimism', slug: 'optimism-mainnet' },
     { name: 'Arbitrum', slug: 'arbitrum-mainnet' },
     { name: 'Base', slug: 'base-mainnet' },
   ];
+  // ZİNCİR ADI DÜZELTME BİTİŞ
 
   useEffect(() => {
     initFrame();
@@ -132,23 +134,18 @@ function Dashboard() {
         `https://api.covalenthq.com/v1/${chainSlug}/address/${address}/transactions_v2/?page-number=${page}&page-size=${pageSize}&key=${process.env.NEXT_PUBLIC_COVALENT_API_KEY}`
       );
       
-      // HATA DÜZELTME: Covalent'ten gelen hatayı daha detaylı yakala
       if (!res.ok) {
-        let errorMessage = res.statusText || `Hata Kodu: ${res.status}`; // Önce varsayılan statusText'i al
+        let errorMessage = res.statusText || `Hata Kodu: ${res.status}`;
         try {
-          // API'den gelen JSON formatındaki hatayı okumaya çalış
           const errorData = await res.json();
           if (errorData && errorData.error_message) {
             errorMessage = errorData.error_message;
           }
         } catch (e) {
-          // JSON parse edilemezse, statusText veya Hata Kodu ile devam et
           console.error("API hata yanıtı JSON olarak parse edilemedi", e);
         }
-        // Hata mesajını fırlat
         throw new Error(`Covalent API hatası (Chain: ${chainSlug}): ${errorMessage}`);
       }
-      // HATA DÜZELTME BİTİŞ
         
       const data = await res.json();
       if (!data?.data?.items) break;
@@ -286,9 +283,7 @@ function Dashboard() {
     <main className="flex flex-col items-center justify-center min-h-screen p-4 bg-gray-50">
       <h1 className="text-3xl font-bold mb-6 text-indigo-700">Wallet Fee Tracker</h1>
 
-      {/* ... (Mobil wallet modal kısmı aynı kaldı) ... */}
       {isMobile() ? (
-         // ... (mevcut mobil kodunuz) ...
           <>
           <button
             onClick={() => setShowWalletModal(true)}
@@ -327,7 +322,6 @@ function Dashboard() {
       ) : (
         <ConnectButton />
       )}
-      {/* ... (Mobil wallet modal kısmı bitti) ... */}
 
       {isConnected && (
         <div className="mt-6 w-full max-w-3xl">
