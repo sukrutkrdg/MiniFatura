@@ -5,17 +5,16 @@ export const runtime = 'edge'; // Edge uyumlu
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const fee = searchParams.get('fee') || '$0.00 USD';
-  const category = searchParams.get('category') || 'Bilinmiyor';
+  const category = searchParams.get('category') || 'Unknown';
 
-  let title = "Web3 Fatura Özeti";
-  let feeText = `Toplam Harcama: ${fee}`;
-  let categoryText = `En Çok Harcama: ${category}`;
+  let title = "Web3 Fee Summary";
+  let feeText = `Total Spend: ${fee}`;
+  let categoryText = `Top Category: ${category}`;
 
-  // GÜNCELLEME (Madde 4): Veri yoksa gösterilecek özel mesaj
-  if (fee === 'Veri Yok') {
-    title = "Fee Tracker'a Hoş Geldiniz!";
-    feeText = "Cüzdan harcamalarınızı hesaplamak için";
-    categoryText = "Uygulamayı ziyaret edin ve cüzdanınızı bağlayın.";
+  if (fee === 'No Data') {
+    title = "Welcome to Fee Tracker!";
+    feeText = "To calculate your wallet spending,";
+    categoryText = "visit the app and connect your wallet.";
   }
 
   const svg = `

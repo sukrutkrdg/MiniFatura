@@ -57,15 +57,15 @@ async function initFrame() {
     const host = frameHost as any;
     if (host && typeof host.ready === 'function') {
       await host.ready();
-      console.log('✅ frameHost.ready() başarılı.');
+      console.log('✅ frameHost.ready() success.');
     } else if (host?.actions?.ready) {
       await host.actions.ready();
-      console.log('✅ frameHost.actions.ready() başarılı.');
+      console.log('✅ frameHost.actions.ready() success.');
     } else {
-      console.log('🌐 Web ortamı.');
+      console.log('🌐 Web environment.');
     }
   } catch (e) {
-    console.error('❌ Frame init hatası:', e);
+    console.error('❌ Frame init error:', e);
   }
 }
 
@@ -86,7 +86,7 @@ function Dashboard() {
   
   const chains = [
     { name: 'Ethereum', slug: 'eth-mainnet' },
-    { name: 'Polygon', slug: 'matic-mainnet' }, // Düzeltildi
+    { name: 'Polygon', slug: 'matic-mainnet' },
     { name: 'Optimism', slug: 'optimism-mainnet' },
     { name: 'Arbitrum', slug: 'arbitrum-mainnet' },
     { name: 'Base', slug: 'base-mainnet' },
@@ -133,16 +133,16 @@ function Dashboard() {
       );
       
       if (!res.ok) {
-        let errorMessage = res.statusText || `Hata Kodu: ${res.status}`;
+        let errorMessage = res.statusText || `Error Code: ${res.status}`;
         try {
           const errorData = await res.json();
           if (errorData && errorData.error_message) {
             errorMessage = errorData.error_message;
           }
         } catch (e) {
-          console.error("API hata yanıtı JSON olarak parse edilemedi", e);
+          console.error("Could not parse API error response as JSON", e);
         }
-        throw new Error(`Covalent API hatası (Chain: ${chainSlug}): ${errorMessage}`);
+        throw new Error(`Covalent API Error (Chain: ${chainSlug}): ${errorMessage}`);
       }
         
       const data = await res.json();
@@ -170,18 +170,18 @@ function Dashboard() {
           .single();
 
         if (cacheError && cacheError.code !== 'PGRST116') {
-           console.error('Supabase okuma hatası:', cacheError);
+           console.error('Supabase read error:', cacheError);
         }
         
         const oneHourAgo = new Date(new Date().getTime() - 60 * 60 * 1000).toISOString();
         if (cachedData && cachedData.updated_at > oneHourAgo) {
-          console.log('Cache (Supabase) kullanılıyor.');
+          console.log('Using cache (Supabase).');
           setChainStats(cachedData.chain_stats);
           setLoading(false);
           return;
         }
         
-        console.log('Cache eski veya yok. Covalent API çağrılıyor...');
+        console.log('Cache is old or missing. Calling Covalent API...');
         
         const results = await Promise.all(
           chains.map(async (chain) => {
@@ -190,13 +190,9 @@ function Dashboard() {
             const categories: Record<string, { totalFeeUSD: number; count: number }> = {};
             
             const feesUSD = items.map((tx: any) => {
-              
-              // USD HESAPLAMA DÜZELTMESİ:
-              // tx.fees_paid_usd alanı (bazen null/0 geliyor) yerine manuel hesaplama yapıyoruz.
-              const feeInNativeToken = (tx.fees_paid || 0) / 1e18; // Ücret, Wei'den normale çevrildi
-              const gasRateUSD = tx.gas_quote_rate || 0; // 1 yerel token'in USD fiyatı
+              const feeInNativeToken = (Number(tx.fees_paid) || 0) / 1e18;
+              const gasRateUSD = tx.gas_quote_rate || 0;
               const feeUSD = feeInNativeToken * gasRateUSD;
-              // USD HESAPLAMA DÜZELTMESİ BİTİŞ
 
               const category = classifyTransaction(tx);
               if (!categories[category])
@@ -237,11 +233,11 @@ function Dashboard() {
         });
         
       } catch (err) {
-        console.error('Veri çekme hatası:', err);
+        console.error('Error fetching data:', err);
         if (err instanceof Error) {
-            setError(`Veri çekilirken bir hata oluştu: ${err.message}. Lütfen daha sonra tekrar deneyin.`);
+            setError(`An error occurred while fetching data: ${err.message}. Please try again later.`);
         } else {
-            setError('Bilinmeyen bir hata oluştu.');
+            setError('An unknown error occurred.');
         }
       } finally {
         setLoading(false);
@@ -293,14 +289,14 @@ function Dashboard() {
             onClick={() => setShowWalletModal(true)}
             className="bg-indigo-600 text-white px-6 py-3 rounded-xl shadow-md hover:bg-indigo-700 transition"
           >
-            Cüzdanını Bağla
+            Connect Wallet
           </button>
 
           {showWalletModal && (
             <div className="fixed inset-0 bg-black/50 flex items-end justify-center z-50">
               <div className="bg-white w-full rounded-t-2xl p-6 shadow-lg">
                 <h2 className="text-lg font-semibold text-center mb-4">
-                  Cüzdanını Seç
+                  Select Wallet
                 </h2>
                 <div className="grid grid-cols-2 gap-4">
                   {Object.keys(WALLET_LINKS).map((wallet) => (
@@ -317,7 +313,7 @@ function Dashboard() {
                   onClick={() => setShowWalletModal(false)}
                   className="mt-4 w-full text-center text-gray-500"
                 >
-                  Kapat
+                  Close
                 </button>
               </div>
             </div>
@@ -332,18 +328,18 @@ function Dashboard() {
           {loading ? (
             <div className="flex flex-col items-center">
               <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-indigo-500 mb-4"></div>
-              <p>İşlem verileri çekiliyor...</p>
-              <p className="text-sm text-gray-500">(İlk seferde bu işlem cüzdan yoğunluğuna göre birkaç dakika sürebilir)</p>
+              <p>Fetching transaction data...</p>
+              <p className="text-sm text-gray-500">(This may take a few minutes the first time depending on wallet activity)</p>
             </div>
           ) : error ? (
             <div className="text-center p-4 bg-red-100 text-red-700 rounded-lg">
-                <p><strong>Hata!</strong></p>
+                <p><strong>Error!</strong></p>
                 <p>{error}</p>
             </div>
           ) : (
             <>
               <div className="mt-4">
-                <label className="mr-2">Zincir Seç:</label>
+                <label className="mr-2">Select Chain:</label>
                 <select
                   value={selectedChain}
                   onChange={(e) => setSelectedChain(e.target.value)}
@@ -360,19 +356,19 @@ function Dashboard() {
               {selectedData && (
                 <>
                   <p className="mt-4">
-                    Toplam Harcama ({selectedData.name}):{' '}
+                    Total Spend ({selectedData.name}):{' '}
                     <strong>${selectedData.totalFeeUSD.toFixed(2)} USD</strong>
                   </p>
                   <p>
-                    Toplam İşlem: <strong>{selectedData.txCount}</strong>
+                    Total Transactions: <strong>{selectedData.txCount}</strong>
                   </p>
                   
-                  <h2 className="text-lg font-semibold mt-8">{selectedData.name} - Kategoriye Göre Harcama</h2>
+                  <h2 className="text-lg font-semibold mt-8">{selectedData.name} - Spend by Category</h2>
                   <Pie data={categoryChartData} className="mt-6" />
                 </>
               )}
 
-              <h2 className="text-lg font-semibold mt-8">Zincirlere Göre Toplam Harcama (USD)</h2>
+              <h2 className="text-lg font-semibold mt-8">Total Spend by Chain (USD)</h2>
               <Bar data={chainChartData} className="mt-2" />
             </>
           )}
