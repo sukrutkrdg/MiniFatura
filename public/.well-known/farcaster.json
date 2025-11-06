@@ -1,0 +1,36 @@
+{
+  "frame": {
+    "name": "WalletFee",
+    "version": "1",
+    "iconUrl": "https://mini-fatura.vercel.app/icon.png",
+    "homeUrl": "https://mini-fatura.vercel.app",
+    "imageUrl": "https://mini-fatura.vercel.app/image.png",
+    "buttonTitle": "Start Tracking Fees",
+    "splashImageUrl": "https://mini-fatura.vercel.app/splash.png",
+    "splashBackgroundColor": "#6200EA",
+    "webhookUrl": "https://mini-fatura.vercel.app/api/webhook",
+    "subtitle": "Wallet Fee Tota",
+    "description": "Track total transaction fee spending across your wallets across multiple blockchains",
+    "screenshotUrls": [
+      "https://mini-fatura.vercel.app/secreenshots"
+    ],
+    "primaryCategory": "utility",
+    "tags": [
+      "fee",
+      "gas",
+      "tracker",
+      "cost",
+      "transaction"
+    ],
+    "heroImageUrl": "https://mini-fatura.vercel.app/heroimage.png",
+    "tagline": "Track Your Crypto Fees",
+    "ogTitle": "Fee Tracker - Multi-Chain Gas",
+    "ogDescription": "See exactly how much you spend on gas and transaction fees across Ethereum...",
+    "ogImageUrl": "https://mini-fatura.vercel.app/image.png"
+  },
+  "accountAssociation": {
+    "header": "eyJmaWQiOjI4NzI4NiwidHlwZSI6ImN1c3RvZHkiLCJrZXkiOiIweEZFNUU1MDgzMDdhYTY2OTk5ZUIxMDhkNTdCRmJmYzAyY2M1QzRkODkifQ",
+    "payload": "eyJkb21haW4iOiJtaW5pLWZhdHVyYS52ZXJjZWwuYXBwIn0",
+    "signature": "kOteyYPKXi0viROu1zyvfBSW2VhLr2NJCw8X0Rg9pSZdSn1yuGr73cTobFqGshXWWFPsiBb5cIsR/cH63BlxvRw="
+  }
+}
