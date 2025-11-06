@@ -69,13 +69,11 @@ async function initFrame() {
   }
 }
 
-// GÜNCELLEME (Madde 3): Arayüzü USD ve daha fazla kategori gösterecek şekilde güncelledik.
 interface ChainStat {
   name: string;
-  totalFeeUSD: number; // totalFee -> totalFeeUSD
+  totalFeeUSD: number;
   txCount: number;
-  // fees: number[]; // Bu artık kullanılmayacak (Madde 5)
-  categories: Record<string, { totalFeeUSD: number; count: number }>; // totalFee -> totalFeeUSD
+  categories: Record<string, { totalFeeUSD: number; count: number }>;
 }
 
 function Dashboard() {
@@ -84,13 +82,8 @@ function Dashboard() {
   const [selectedChain, setSelectedChain] = useState('Ethereum');
   const [loading, setLoading] = useState(false);
   const [showWalletModal, setShowWalletModal] = useState(false);
-  
-  // GÜNCELLEME (Madde 5): Hata yönetimi için state eklendi.
   const [error, setError] = useState<string | null>(null);
   
-  // GÜNCELLEME (Madde 3): Zincir listesi USD hesaplaması için chainId ve nativeCurrency içerecek şekilde güncellendi.
-  // Covalent API v3 (v2 yönlendirmesi) `fees_paid_usd` sağladığı için buna şimdilik gerek kalmadı,
-  // ancak gelecekte manuel hesaplama gerekirse bu yapı faydalı olur.
   const chains = [
     { name: 'Ethereum', slug: 'eth-mainnet' },
     { name: 'Polygon', slug: 'polygon-mainnet' },
@@ -103,7 +96,6 @@ function Dashboard() {
     initFrame();
   }, []);
 
-  // GÜNCELLEME (Madde 3): Kategori sınıflandırması daha detaylı hale getirildi.
   function classifyTransaction(tx: any): string {
     const decodedName = tx.decoded?.name?.toLowerCase();
     if (decodedName) {
@@ -126,7 +118,7 @@ function Dashboard() {
 
     if (decodedName?.includes('transfer')) return 'Transfer';
     
-    return 'Other'; // Diğer/Bilinmeyen
+    return 'Other';
   }
 
   async function fetchAllTransactions(address: string, chainSlug: string) {
@@ -140,10 +132,23 @@ function Dashboard() {
         `https://api.covalenthq.com/v1/${chainSlug}/address/${address}/transactions_v2/?page-number=${page}&page-size=${pageSize}&key=${process.env.NEXT_PUBLIC_COVALENT_API_KEY}`
       );
       
-      // GÜNCELLEME (Madde 5): API'den başarısız yanıt gelirse hata fırlat
+      // HATA DÜZELTME: Covalent'ten gelen hatayı daha detaylı yakala
       if (!res.ok) {
-        throw new Error(`Covalent API hatası (Chain: ${chainSlug}): ${res.statusText}`);
+        let errorMessage = res.statusText || `Hata Kodu: ${res.status}`; // Önce varsayılan statusText'i al
+        try {
+          // API'den gelen JSON formatındaki hatayı okumaya çalış
+          const errorData = await res.json();
+          if (errorData && errorData.error_message) {
+            errorMessage = errorData.error_message;
+          }
+        } catch (e) {
+          // JSON parse edilemezse, statusText veya Hata Kodu ile devam et
+          console.error("API hata yanıtı JSON olarak parse edilemedi", e);
+        }
+        // Hata mesajını fırlat
+        throw new Error(`Covalent API hatası (Chain: ${chainSlug}): ${errorMessage}`);
       }
+      // HATA DÜZELTME BİTİŞ
         
       const data = await res.json();
       if (!data?.data?.items) break;
@@ -160,22 +165,19 @@ function Dashboard() {
 
     const fetchData = async () => {
       setLoading(true);
-      setError(null); // GÜNCELLEME (Madde 5): Hata mesajını sıfırla
+      setError(null);
 
       try {
-        // GÜNCELLEME (Madde 2): Performans için önbellek kontrolü
         const { data: cachedData, error: cacheError } = await supabase
           .from('wallet_stats')
           .select('*')
           .eq('wallet_address', address)
           .single();
 
-        if (cacheError && cacheError.code !== 'PGRST116') { // 'PGRST116' = no rows found
+        if (cacheError && cacheError.code !== 'PGRST116') {
            console.error('Supabase okuma hatası:', cacheError);
-           // Hata olsa bile devam et, veriyi yeniden çek
         }
         
-        // Veri varsa ve 1 saatten yeniyse, API'yi çağırma
         const oneHourAgo = new Date(new Date().getTime() - 60 * 60 * 1000).toISOString();
         if (cachedData && cachedData.updated_at > oneHourAgo) {
           console.log('Cache (Supabase) kullanılıyor.');
@@ -185,18 +187,14 @@ function Dashboard() {
         }
         
         console.log('Cache eski veya yok. Covalent API çağrılıyor...');
-        // GÜNCELLEME (Madde 2) Bitiş
         
         const results = await Promise.all(
           chains.map(async (chain) => {
             const items = await fetchAllTransactions(address, chain.slug);
             
-            // GÜNCELLEME (Madde 3): USD ve Kategori hesaplaması güncellendi
             const categories: Record<string, { totalFeeUSD: number; count: number }> = {};
             
             const feesUSD = items.map((tx: any) => {
-              // Covalent v3 (v2 yönlendirmesi) 'fees_paid_usd' sağlar. 
-              // Bu, ETH/MATIC/vb. dönüşümünü otomatik yapar.
               const feeUSD = tx.fees_paid_usd || 0; 
               
               const category = classifyTransaction(tx);
@@ -211,27 +209,22 @@ function Dashboard() {
             
             return { 
               name: chain.name, 
-              totalFeeUSD, // totalFee -> totalFeeUSD
+              totalFeeUSD,
               txCount: items.length, 
-              // fees: feesUSD, // (Madde 5) Bu grafiği kaldırdığımız için artık state'e yüklemeye gerek yok
               categories 
             };
           })
         );
-        // GÜNCELLEME (Madde 3) Bitiş
 
         setChainStats(results);
 
-        // GÜNCELLEME (Madde 3): Toplam harcama USD'ye göre hesaplanıyor
         const totalFeeUSDAllChains = results.reduce((s, c) => s + c.totalFeeUSD, 0);
 
         await supabase.from('wallet_stats').upsert({
           wallet_address: address,
-          total_fee: totalFeeUSDAllChains, // Artık USD cinsinden toplam
+          total_fee: totalFeeUSDAllChains,
           chain_stats: results,
           updated_at: new Date().toISOString(),
-          
-          // GÜNCELLEME (Madde 4) için 'top_category' eklendi
           top_category: Object.entries(
               results.flatMap(r => Object.entries(r.categories))
                      .reduce((acc, [cat, data]) => {
@@ -244,7 +237,6 @@ function Dashboard() {
         
       } catch (err) {
         console.error('Veri çekme hatası:', err);
-        // GÜNCELLEME (Madde 5): Hata yönetimi
         if (err instanceof Error) {
             setError(`Veri çekilirken bir hata oluştu: ${err.message}. Lütfen daha sonra tekrar deneyin.`);
         } else {
@@ -256,46 +248,30 @@ function Dashboard() {
     };
 
     fetchData();
-  }, [address, isConnected]); // 'chains' bağımlılığını kaldırdık, artık sabit.
+  }, [address, isConnected]);
 
   const selectedData = chainStats.find((s) => s.name === selectedChain);
 
-  // GÜNCELLEME (Madde 5): Bu grafik kaldırıldı.
-  /*
-  const chartData = {
-    labels: selectedData ? selectedData.fees.map((_, i) => `Tx ${i + 1}`) : [],
-    datasets: [
-      {
-        label: 'Fee (USD)', // ETH -> USD
-        data: selectedData ? selectedData.fees : [],
-        backgroundColor: 'rgba(99,102,241,0.6)',
-      },
-    ],
-  };
-  */
-
-  // GÜNCELLEME (Madde 3): Grafik USD'ye güncellendi
   const chainChartData = {
     labels: chainStats.map((c) => c.name),
     datasets: [
       {
-        label: 'Total Fee (USD)', // ETH -> USD
-        data: chainStats.map((c) => c.totalFeeUSD), // totalFee -> totalFeeUSD
+        label: 'Total Fee (USD)',
+        data: chainStats.map((c) => c.totalFeeUSD),
         backgroundColor: 'rgba(147,51,234,0.6)',
       },
     ],
   };
 
-  // GÜNCELLEME (Madde 3): Grafik USD'ye güncellendi
   const categoryChartData = {
     labels: selectedData ? Object.keys(selectedData.categories) : [],
     datasets: [
       {
-        label: 'Category Spending (USD)', // ETH -> USD
+        label: 'Category Spending (USD)',
         data: selectedData
-          ? Object.values(selectedData.categories).map((v) => v.totalFeeUSD) // totalFee -> totalFeeUSD
+          ? Object.values(selectedData.categories).map((v) => v.totalFeeUSD)
           : [],
-        backgroundColor: ['#4F46E5', '#EC4899', '#10B981', '#F59E0B', '#F97316', '#6B7280'], // GÜNCELLEME (Madde 3): Yeni kategoriler için renkler eklendi
+        backgroundColor: ['#4F46E5', '#EC4899', '#10B981', '#F59E0B', '#F97316', '#6B7280'],
       },
     ],
   };
@@ -361,7 +337,6 @@ function Dashboard() {
               <p>İşlem verileri çekiliyor...</p>
               <p className="text-sm text-gray-500">(İlk seferde bu işlem cüzdan yoğunluğuna göre birkaç dakika sürebilir)</p>
             </div>
-          // GÜNCELLEME (Madde 5): Hata mesajı UI'da gösteriliyor
           ) : error ? (
             <div className="text-center p-4 bg-red-100 text-red-700 rounded-lg">
                 <p><strong>Hata!</strong></p>
@@ -387,17 +362,12 @@ function Dashboard() {
               {selectedData && (
                 <>
                   <p className="mt-4">
-                    {/* GÜNCELLEME (Madde 3): ETH -> USD */}
                     Toplam Harcama ({selectedData.name}):{' '}
                     <strong>${selectedData.totalFeeUSD.toFixed(2)} USD</strong>
                   </p>
                   <p>
                     Toplam İşlem: <strong>{selectedData.txCount}</strong>
                   </p>
-                  
-                  {/* GÜNCELLEME (Madde 5): Bu grafik çok fazla veri içerdiği ve UI'ı bozduğu için kaldırıldı.
-                  <Bar data={chartData} className="mt-4" />
-                  */}
                   
                   <h2 className="text-lg font-semibold mt-8">{selectedData.name} - Kategoriye Göre Harcama</h2>
                   <Pie data={categoryChartData} className="mt-6" />
