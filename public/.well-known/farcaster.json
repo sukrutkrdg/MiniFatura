@@ -1,3 +1,4 @@
+
 {
   "frame": {
     "name": "Fee Tracker",
@@ -15,7 +16,13 @@
       "https://mini-fatura.vercel.app/screenshots"
     ],
     "primaryCategory": "utility",
-    "tags": ["fee", "gas", "tracker", "cost", "transaction", "wallet", "analysis", "ethereum", "base", "polygon", "optimism", "arbitrum", "finance", "utility"],
+    "tags": [
+      "fee",
+      "gas",
+      "tracker",
+      "cost",
+      "transaction"
+    ],
     "heroImageUrl": "https://mini-fatura.vercel.app/heroimage.png",
     "tagline": "Track Your Crypto Fees",
     "ogTitle": "Fee Tracker - Multi-Chain Gas",
