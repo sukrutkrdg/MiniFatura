@@ -1,4 +1,5 @@
-// next.config.js
+// next.config.mjs
+/** @type {import('next').NextConfig} */
 const nextConfig = {
   async headers() {
     return [
@@ -19,4 +20,4 @@ const nextConfig = {
   },
 };
 
-module.exports = nextConfig;
+export default nextConfig; // 'module.exports = nextConfig' yerine 'export default' kullanıyoruz
