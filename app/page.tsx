@@ -21,7 +21,6 @@ import {
   Legend,
   ArcElement,
 } from 'chart.js';
-// ARTIK GEREKLİ DEĞİL: import { supabase } from '../lib/supabaseClient';
 import { frameHost } from '@farcaster/frame-sdk';
 
 // ✅ Chart.js setup
@@ -69,10 +68,11 @@ async function initFrame() {
   }
 }
 
-// Madde 2: İşlem arayüzü
+// GÜNCELLEME: Native fee eklendi
 interface TopTx {
   tx_hash: string;
   feeUSD: number;
+  feeNative: number; // Eklendi
   category: string;
   date: string;
 }
@@ -80,9 +80,25 @@ interface TopTx {
 interface ChainStat {
   name: string;
   totalFeeUSD: number;
+  totalFeeNative: number; // Eklendi
   txCount: number;
   categories: Record<string, { totalFeeUSD: number; count: number }>;
-  topTransactions: TopTx[]; // Madde 2: İşlem listesi eklendi
+  topTransactions: TopTx[];
+}
+
+// GÜNCELLEME: Native para birimini almak için yardımcı fonksiyon
+function getNativeCurrency(chainName: string): string {
+  switch (chainName) {
+    case 'Polygon':
+      return 'MATIC';
+    case 'Ethereum':
+    case 'Optimism':
+    case 'Arbitrum':
+    case 'Base':
+      return 'ETH';
+    default:
+      return 'ETH';
+  }
 }
 
 function Dashboard() {
@@ -92,12 +108,8 @@ function Dashboard() {
   const [loading, setLoading] = useState(false);
   const [showWalletModal, setShowWalletModal] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
-  // Madde 4: Başarısız zincirleri takip etmek için yeni state
   const [failedChains, setFailedChains] = useState<string[]>([]);
-  
-  // Madde 3: Tarih filtresi için yeni state
-  const [daysFilter, setDaysFilter] = useState('all'); // 'all', '30', '7'
+  const [daysFilter, setDaysFilter] = useState('all');
 
   const chainNames = chainStats.map(c => c.name);
 
@@ -117,10 +129,9 @@ function Dashboard() {
     const fetchData = async () => {
       setLoading(true);
       setError(null);
-      setFailedChains([]); // Her istekte sıfırla
+      setFailedChains([]);
 
       try {
-        // Madde 3: Tarih filtresini API isteğine ekle
         const filterParam = (daysFilter !== 'all') ? `&days=${daysFilter}` : '';
         const res = await fetch(`/api/process-wallet?address=${address}${filterParam}`);
         
@@ -132,7 +143,6 @@ function Dashboard() {
 
         setChainStats(data.chainStats);
         
-        // Madde 4: Başarısız zincirleri state'e kaydet
         if (data.failedChains && data.failedChains.length > 0) {
             setFailedChains(data.failedChains);
         }
@@ -154,7 +164,7 @@ function Dashboard() {
     };
 
     fetchData();
-  }, [address, isConnected, daysFilter]); // Madde 3: daysFilter'ı bağımlılıklara ekle
+  }, [address, isConnected, daysFilter]);
 
   const selectedData = chainStats.find((s) => s.name === selectedChain);
 
@@ -247,7 +257,6 @@ function Dashboard() {
             </div>
           ) : (
             <>
-              {/* Madde 4: Başarısız zincirler için uyarı */}
               {failedChains.length > 0 && (
                 <div className="text-center p-3 mb-4 bg-yellow-100 text-yellow-800 rounded-lg">
                   <p><strong>Warning:</strong> Data for the following chains could not be loaded: {failedChains.join(', ')}.</p>
@@ -256,7 +265,6 @@ function Dashboard() {
 
               {chainStats.length > 0 ? (
                 <>
-                  {/* Madde 3: Tarih Filtresi UI */}
                   <div className="flex justify-between items-center mt-4">
                     <div>
                       <label className="mr-2">Select Chain:</label>
@@ -292,7 +300,16 @@ function Dashboard() {
                         Total Spend ({selectedData.name}):{' '}
                         <strong>${selectedData.totalFeeUSD.toFixed(2)} USD</strong>
                       </p>
-                      <p>
+                      {/* GÜNCELLEME: Native Fee göstergesi eklendi */}
+                      <p className="mt-1 text-sm text-gray-600">
+                        (Total Native Spend:{' '}
+                        <strong>
+                          {selectedData.totalFeeNative.toFixed(6)}{' '}
+                          {getNativeCurrency(selectedData.name)}
+                        </strong>
+                        )
+                      </p>
+                      <p className="mt-1">
                         Total Transactions: <strong>{selectedData.txCount}</strong>
                       </p>
                       
@@ -304,7 +321,6 @@ function Dashboard() {
                   <h2 className="text-lg font-semibold mt-8">Total Spend by Chain (USD)</h2>
                   <Bar data={chainChartData} className="mt-2" />
 
-                  {/* Madde 2: Detaylı İşlem Listesi */}
                   {selectedData && selectedData.topTransactions.length > 0 && (
                     <>
                       <h2 className="text-lg font-semibold mt-8">Top 10 Expensive Transactions on {selectedData.name}</h2>
@@ -314,6 +330,8 @@ function Dashboard() {
                             <tr>
                               <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
                               <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Category</th>
+                              {/* GÜNCELLEME: Yeni Sütun */}
+                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Fee (Native)</th>
                               <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Fee (USD)</th>
                               <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Hash</th>
                             </tr>
@@ -323,10 +341,17 @@ function Dashboard() {
                               <tr key={tx.tx_hash}>
                                 <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-800">{new Date(tx.date).toLocaleDateString()}</td>
                                 <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-800">{tx.category}</td>
+                                {/* GÜNCELLEME: Yeni Hücre */}
+                                <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-800">{tx.feeNative.toFixed(6)}</td>
                                 <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-800">${tx.feeUSD.toFixed(2)}</td>
                                 <td className="px-4 py-2 whitespace-nowrap text-sm">
-                                  <a 
-                                    href={`https://etherscan.io/tx/${tx.tx_hash}`} // Not: Bu link sadece Eth/Base için çalışır. Zincire göre dinamik olmalı
+                                  <a
+                                    // GÜNCELLEME: Linki dinamik hale getirelim (basitçe)
+                                    href={
+                                      selectedData.name === 'Polygon' 
+                                        ? `https://polygonscan.com/tx/${tx.tx_hash}`
+                                        : `https://etherscan.io/tx/${tx.tx_hash}`
+                                    }
                                     target="_blank" 
                                     rel="noopener noreferrer"
                                     className="text-indigo-600 hover:text-indigo-900"
@@ -343,7 +368,6 @@ function Dashboard() {
                   )}
                 </>
               ) : (
-                 // Cüzdan bağlı ama veri (henüz) yok
                  <></>
               )}
             </>
