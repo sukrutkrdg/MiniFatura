@@ -1,7 +1,6 @@
 import { NextResponse, NextRequest } from 'next/server';
 import { supabase } from '../../../lib/supabaseClient';
 
-// GÜNCELLEME: ChainStat tipini, başarılı zincirler dizisi için burada da tanımla
 interface TopTx {
   tx_hash: string;
   feeUSD: number;
@@ -19,7 +18,6 @@ interface ChainStat {
   topTransactions: TopTx[];
 }
 
-// Zincir tanımlamaları
 const chains = [
   { name: 'Ethereum', slug: 'eth-mainnet' },
   { name: 'Polygon', slug: 'matic-mainnet' },
@@ -28,7 +26,6 @@ const chains = [
   { name: 'Base', slug: 'base-mainnet' },
 ];
 
-// Sınıflandırma fonksiyonu
 function classifyTransaction(tx: any): string {
   const decodedName = tx.decoded?.name?.toLowerCase();
   if (decodedName) {
@@ -51,7 +48,6 @@ function classifyTransaction(tx: any): string {
   return 'Other';
 }
 
-// Covalent'ten veri çeken fonksiyon
 async function fetchChainTransactions(address: string, chainSlug: string) {
   let page = 0;
   const pageSize = 1000;
@@ -91,7 +87,7 @@ async function fetchChainTransactions(address: string, chainSlug: string) {
   return allItems;
 }
 
-// İşlem verisini işleyen ana fonksiyon
+// GÜNCELLEME: 'walletAddress' parametresi eklendi
 function processTransactions(items: any[], walletAddress: string): Omit<ChainStat, 'name'> {
   const categories: Record<string, { totalFeeUSD: number; count: number }> = {};
   const transactions: { feeUSD: number; feeNative: number; tx_hash: string; date: string; category: string }[] = [];
@@ -99,7 +95,9 @@ function processTransactions(items: any[], walletAddress: string): Omit<ChainSta
 
   items.forEach((tx: any) => {
     
-    const isSender = tx.from_address.toLowerCase() === walletAddress.toLowerCase();
+    // JSON ÇÖKME DÜZELTMESİ:
+    // 'tx.from_address' null olabileceğinden, ?. (optional chaining) ekledik.
+    const isSender = tx.from_address?.toLowerCase() === walletAddress.toLowerCase();
     
     let feeInNativeToken = 0;
     let feeUSD = 0;
@@ -145,7 +143,6 @@ function processTransactions(items: any[], walletAddress: string): Omit<ChainSta
 }
 
 
-// Frontend'den çağrılacak ana API fonksiyonu
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const walletAddress = searchParams.get('address');
@@ -200,7 +197,6 @@ export async function GET(req: NextRequest) {
 
     const results = await Promise.allSettled(promises);
     
-    // KRİTİK HATA YÖNETİMİ DÜZELTMESİ
     const successfulChains: ChainStat[] = [];
     const failedChains: string[] = [];
 
@@ -208,12 +204,10 @@ export async function GET(req: NextRequest) {
       if (result.status === 'fulfilled') {
         successfulChains.push(result.value);
       } else {
-        // Hata durumunda, doğru 'index'i kullanarak 'chains' dizisinden ismi al
         failedChains.push(chains[index].name);
-        console.error(`Error processing chain ${chains[index].name}:`, result.reason); // Sunucuya logla
+        console.error(`Error processing chain ${chains[index].name}:`, result.reason);
       }
     });
-    // DÜZELTME BİTİŞ
 
     if (successfulChains.length === 0) {
       const firstError = (results.find(r => r.status === 'rejected') as PromiseRejectedResult)?.reason.message;
