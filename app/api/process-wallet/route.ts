@@ -1,4 +1,4 @@
-import { NextResponse, NextRequest } from 'next/server'; // GÜNCELLEME: NextRequest eklendi
+import { NextResponse, NextRequest } from 'next/server';
 import { supabase } from '../../../lib/supabaseClient';
 
 // Zincir tanımlamaları
@@ -74,32 +74,48 @@ async function fetchChainTransactions(address: string, chainSlug: string) {
 }
 
 // İşlem verisini işleyen ana fonksiyon
-function processTransactions(items: any[]) {
+// GÜNCELLEME: 'walletAddress' parametresi eklendi
+function processTransactions(items: any[], walletAddress: string) {
   const categories: Record<string, { totalFeeUSD: number; count: number }> = {};
   const transactions: { feeUSD: number; feeNative: number; tx_hash: string; date: string; category: string }[] = [];
-  let totalFeeNative = 0; 
+  let totalFeeNative = 0;
 
   items.forEach((tx: any) => {
-    const feeInNativeToken = (Number(tx.fees_paid) || 0) / 1e18;
-    const gasRateUSD = tx.gas_quote_rate || 0;
-    const feeUSD = feeInNativeToken * gasRateUSD;
     
-    totalFeeNative += feeInNativeToken; 
+    // KRİTİK HESAPLAMA DÜZELTMESİ:
+    // Sadece işlemi *biz* başlattıysak (from_address = bizim adresimiz) ücreti say.
+    // Cüzdan adreslerini karşılaştırırken case-insensitive (küçük/büyük harf duyarsız) ol.
+    const isSender = tx.from_address.toLowerCase() === walletAddress.toLowerCase();
+    
+    let feeInNativeToken = 0;
+    let feeUSD = 0;
+
+    if (isSender) {
+      feeInNativeToken = (Number(tx.fees_paid) || 0) / 1e18;
+      const gasRateUSD = tx.gas_quote_rate || 0;
+      feeUSD = feeInNativeToken * gasRateUSD;
+      totalFeeNative += feeInNativeToken;
+    }
+    // Eğer 'isSender' değilse (yani biz alıcıysak), feeUSD ve feeNative 0 (sıfır) olarak kalır
+    // ve toplama dahil edilmez.
 
     const category = classifyTransaction(tx);
     if (!categories[category]) {
       categories[category] = { totalFeeUSD: 0, count: 0 };
     }
-    categories[category].totalFeeUSD += feeUSD;
+    categories[category].totalFeeUSD += feeUSD; // Sadece bizim ödediğimiz fee'yi ekler
     categories[category].count += 1;
 
-    transactions.push({
-      feeUSD,
-      feeNative: feeInNativeToken,
-      tx_hash: tx.tx_hash,
-      date: tx.block_signed_at,
-      category,
-    });
+    // İşlem listesine (Top 10) sadece bizim ödediğimiz (fee > 0) işlemleri ekleyelim
+    if (feeUSD > 0) {
+      transactions.push({
+        feeUSD,
+        feeNative: feeInNativeToken,
+        tx_hash: tx.tx_hash,
+        date: tx.block_signed_at,
+        category,
+      });
+    }
   });
 
   const totalFeeUSD = transactions.reduce((s, f) => s + f.feeUSD, 0);
@@ -111,15 +127,15 @@ function processTransactions(items: any[]) {
   return {
     totalFeeUSD,
     totalFeeNative,
-    txCount: items.length,
+    txCount: items.length, // Toplam işlem sayısını (gelen/giden) göstermeye devam edebiliriz
     categories,
-    topTransactions,
+    topTransactions, // Bu liste artık sadece bizim ödediğimiz ücretleri içerecek
   };
 }
 
 
 // Frontend'den çağrılacak ana API fonksiyonu
-export async function GET(req: NextRequest) { // GÜNCELLEME: 'Request' -> 'NextRequest'
+export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const walletAddress = searchParams.get('address');
   const daysFilter = searchParams.get('days');
@@ -163,7 +179,8 @@ export async function GET(req: NextRequest) { // GÜNCELLEME: 'Request' -> 'Next
         filteredItems = items.filter(tx => new Date(tx.block_signed_at) > dateLimit);
       }
       
-      const processedData = processTransactions(filteredItems);
+      // GÜNCELLEME: 'walletAddress' parametresini 'processTransactions'a iletiyoruz
+      const processedData = processTransactions(filteredItems, walletAddress);
       
       return {
         name: chain.name,
