@@ -6,7 +6,7 @@ import {
   RainbowKitProvider,
   ConnectButton,
 } from '@rainbow-me/rainbowkit';
-import { WagmiProvider, useAccount } from 'wagmi';
+import { WagmiProvider, useAccount, useSendTransaction } from 'wagmi';
 import { mainnet, polygon, optimism, arbitrum, base } from 'wagmi/chains';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
@@ -22,6 +22,7 @@ import {
   ArcElement,
 } from 'chart.js';
 import { frameHost } from '@farcaster/frame-sdk';
+import { parseEther } from 'viem'; // GÜNCELLEME: Donate için eklendi
 
 // ✅ Chart.js setup
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement);
@@ -68,11 +69,10 @@ async function initFrame() {
   }
 }
 
-// GÜNCELLEME: Native fee eklendi
 interface TopTx {
   tx_hash: string;
   feeUSD: number;
-  feeNative: number; // Eklendi
+  feeNative: number;
   category: string;
   date: string;
 }
@@ -80,13 +80,12 @@ interface TopTx {
 interface ChainStat {
   name: string;
   totalFeeUSD: number;
-  totalFeeNative: number; // Eklendi
+  totalFeeNative: number;
   txCount: number;
   categories: Record<string, { totalFeeUSD: number; count: number }>;
   topTransactions: TopTx[];
 }
 
-// GÜNCELLEME: Native para birimini almak için yardımcı fonksiyon
 function getNativeCurrency(chainName: string): string {
   switch (chainName) {
     case 'Polygon':
@@ -101,8 +100,46 @@ function getNativeCurrency(chainName: string): string {
   }
 }
 
+// GÜNCELLEME: Donate butonu için yeni bileşen
+function DonateButton() {
+  const { isConnected } = useAccount();
+  const { sendTransaction, isPending } = useSendTransaction();
+  const myDonationAddress = '0x973a31858f4d2125f48c880542da11a2796f12d6'; // Senin cüzdan adresin
+
+  const handleDonate = () => {
+    sendTransaction({
+      to: myDonationAddress,
+      value: parseEther('0.005'), // 0.005 ETH (veya chain'in native token'ı)
+    });
+  };
+
+  if (!isConnected) {
+    return (
+      <p className="text-center text-sm text-gray-500 mt-8">
+        Please connect your wallet to support this tool.
+      </p>
+    );
+  }
+
+  return (
+    <button
+      onClick={handleDonate}
+      disabled={isPending}
+      className="mt-8 w-full bg-green-600 text-white px-6 py-3 rounded-xl shadow-md hover:bg-green-700 transition disabled:opacity-50"
+    >
+      {isPending ? 'Sending...' : 'Support this Tool (Donate 0.005 ETH)'}
+    </button>
+  );
+}
+
+
 function Dashboard() {
-  const { address, isConnected } = useAccount();
+  const { address: connectedAddress, isConnected } = useAccount(); // Bağlı cüzdan
+  
+  // GÜNCELLEME: İki yeni state
+  const [manualAddress, setManualAddress] = useState(''); // Input alanındaki adres
+  const [activeAddress, setActiveAddress] = useState<string | null>(null); // Analiz edilen adres
+
   const [chainStats, setChainStats] = useState<ChainStat[]>([]);
   const [selectedChain, setSelectedChain] = useState('Ethereum');
   const [loading, setLoading] = useState(false);
@@ -117,8 +154,10 @@ function Dashboard() {
     initFrame();
   }, []);
 
+  // GÜNCELLEME: Ana veri çekme useEffect'i artık 'activeAddress'e bağlı
   useEffect(() => {
-    if (!isConnected || !address) {
+    // Analiz edilecek bir adres yoksa, hiçbir şey yapma
+    if (!activeAddress) {
       setChainStats([]);
       setFailedChains([]);
       setError(null);
@@ -133,7 +172,8 @@ function Dashboard() {
 
       try {
         const filterParam = (daysFilter !== 'all') ? `&days=${daysFilter}` : '';
-        const res = await fetch(`/api/process-wallet?address=${address}${filterParam}`);
+        // 'activeAddress'i kullanarak API'yi çağır
+        const res = await fetch(`/api/process-wallet?address=${activeAddress}${filterParam}`);
         
         const data = await res.json();
         
@@ -164,10 +204,11 @@ function Dashboard() {
     };
 
     fetchData();
-  }, [address, isConnected, daysFilter]);
+  }, [activeAddress, daysFilter]); // GÜNCELLEME: Bağımlılık değişti
 
   const selectedData = chainStats.find((s) => s.name === selectedChain);
 
+  // ... (chartData, categoryChartData, handleWalletClick fonksiyonları aynı kaldı) ...
   const chainChartData = {
     labels: chainStats.map((c) => c.name),
     datasets: [
@@ -198,57 +239,109 @@ function Dashboard() {
     window.location.href = deepLink;
   };
 
+  // GÜNCELLEME: Analizi tetikleyen fonksiyonlar
+  const handleManualSubmit = () => {
+    if (manualAddress) {
+      setActiveAddress(manualAddress);
+    }
+  };
+
+  const handleConnectedWalletSubmit = () => {
+    if (isConnected && connectedAddress) {
+      setActiveAddress(connectedAddress);
+    }
+  };
+
+
   return (
     <main className="flex flex-col items-center justify-center min-h-screen p-4 bg-gray-50">
+      
+      {/* GÜNCELLEME: ConnectButton'ı sayfanın sağına aldık, sadece "Donate" için */}
+      <div className="w-full max-w-3xl flex justify-end mb-4">
+        <ConnectButton />
+      </div>
+      
       <h1 className="text-3xl font-bold mb-6 text-indigo-700">Wallet Fee Tracker</h1>
 
-      {isMobile() ? (
-          <>
+      {/* GÜNCELLEME: Yeni Analiz Formu */}
+      <div className="w-full max-w-xl p-6 bg-white rounded-lg shadow-md mb-8">
+        <h2 className="text-xl font-semibold text-center mb-4">Analyze Wallet Fees</h2>
+        <div className="flex flex-col sm:flex-row gap-4">
+          <input
+            type="text"
+            value={manualAddress}
+            onChange={(e) => setManualAddress(e.target.value)}
+            placeholder="Paste any wallet address (0x...) or ENS"
+            className="flex-grow p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-black"
+          />
+          <button
+            onClick={handleManualSubmit}
+            className="bg-indigo-600 text-white px-6 py-3 rounded-xl shadow-md hover:bg-indigo-700 transition disabled:opacity-50"
+            disabled={!manualAddress || loading}
+          >
+            {loading && activeAddress === manualAddress ? 'Analyzing...' : 'Analyze'}
+          </button>
+        </div>
+        
+        <div className="text-center my-4 text-gray-500">OR</div>
+
+        {isMobile() ? (
+          // Mobil için özel cüzdan bağlama butonu (sadece analiz için)
           <button
             onClick={() => setShowWalletModal(true)}
-            className="bg-indigo-600 text-white px-6 py-3 rounded-xl shadow-md hover:bg-indigo-700 transition"
+            className="w-full bg-gray-200 text-black px-6 py-3 rounded-xl shadow-sm hover:bg-gray-300 transition"
           >
-            Connect Wallet
+            Connect Wallet to Analyze
           </button>
+        ) : (
+          // Desktop için "Bağlı cüzdanımı kullan" butonu
+          <button
+            onClick={handleConnectedWalletSubmit}
+            className="w-full bg-gray-200 text-black px-6 py-3 rounded-xl shadow-sm hover:bg-gray-300 transition disabled:opacity-50"
+            disabled={!isConnected || loading}
+          >
+            {loading && activeAddress === connectedAddress ? 'Analyzing...' : (isConnected ? `Analyze ${connectedAddress.substring(0, 6)}...` : 'Connect Wallet to Analyze')}
+          </button>
+        )}
+      </div>
 
-          {showWalletModal && (
-            <div className="fixed inset-0 bg-black/50 flex items-end justify-center z-50">
-              <div className="bg-white w-full rounded-t-2xl p-6 shadow-lg">
-                <h2 className="text-lg font-semibold text-center mb-4">
-                  Select Wallet
-                </h2>
-                <div className="grid grid-cols-2 gap-4">
-                  {Object.keys(WALLET_LINKS).map((wallet) => (
-                    <button
-                      key={wallet}
-                      onClick={() => handleWalletClick(wallet as keyof typeof WALLET_LINKS)}
-                      className="border rounded-xl p-3 text-sm font-medium hover:bg-indigo-50 transition"
-                    >
-                      {wallet.charAt(0).toUpperCase() + wallet.slice(1)} Wallet
-                    </button>
-                  ))}
-                </div>
+      {/* GÜNCELLEME: Mobil cüzdan modal'ı (RainbowKit'in kendi butonu yerine) */}
+      {showWalletModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-end justify-center z-50">
+          <div className="bg-white w-full rounded-t-2xl p-6 shadow-lg">
+            <h2 className="text-lg font-semibold text-center mb-4">
+              Select Wallet
+            </h2>
+            <div className="grid grid-cols-2 gap-4">
+              {Object.keys(WALLET_LINKS).map((wallet) => (
                 <button
-                  onClick={() => setShowWalletModal(false)}
-                  className="mt-4 w-full text-center text-gray-500"
+                  key={wallet}
+                  onClick={() => handleWalletClick(wallet as keyof typeof WALLET_LINKS)}
+                  className="border rounded-xl p-3 text-sm font-medium hover:bg-indigo-50"
                 >
-                  Close
+                  {wallet.charAt(0).toUpperCase() + wallet.slice(1)} Wallet
                 </button>
-              </div>
+              ))}
             </div>
-          )}
-        </>
-      ) : (
-        <ConnectButton />
+            <button
+              onClick={() => setShowWalletModal(false)}
+              className="mt-4 w-full text-center text-gray-500"
+            >
+              Close
+            </button>
+          </div>
+        </div>
       )}
 
-      {isConnected && (
+
+      {/* GÜNCELLEME: Sonuç alanı artık 'activeAddress'e bağlı */}
+      {activeAddress && (
         <div className="mt-6 w-full max-w-3xl">
           {loading ? (
             <div className="flex flex-col items-center">
               <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-indigo-500 mb-4"></div>
-              <p>Fetching transaction data...</p>
-              <p className="text-sm text-gray-500">(This may take a few minutes the first time depending on wallet activity)</p>
+              <p>Fetching transaction data for {activeAddress.substring(0, 6)}...</p>
+              <p className="text-sm text-gray-500">(This may take a few minutes the first time)</p>
             </div>
           ) : error ? (
             <div className="text-center p-4 bg-red-100 text-red-700 rounded-lg">
@@ -271,7 +364,7 @@ function Dashboard() {
                       <select
                         value={selectedChain}
                         onChange={(e) => setSelectedChain(e.target.value)}
-                        className="border p-2 rounded"
+                        className="border p-2 rounded text-black"
                       >
                         {chainNames.map((name) => (
                           <option key={name} value={name}>
@@ -285,7 +378,7 @@ function Dashboard() {
                       <select
                         value={daysFilter}
                         onChange={(e) => setDaysFilter(e.target.value)}
-                        className="border p-2 rounded"
+                        className="border p-2 rounded text-black"
                       >
                         <option value="all">All Time</option>
                         <option value="30">Last 30 Days</option>
@@ -300,7 +393,6 @@ function Dashboard() {
                         Total Spend ({selectedData.name}):{' '}
                         <strong>${selectedData.totalFeeUSD.toFixed(2)} USD</strong>
                       </p>
-                      {/* GÜNCELLEME: Native Fee göstergesi eklendi */}
                       <p className="mt-1 text-sm text-gray-600">
                         (Total Native Spend:{' '}
                         <strong>
@@ -330,26 +422,29 @@ function Dashboard() {
                             <tr>
                               <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
                               <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Category</th>
-                              {/* GÜNCELLEME: Yeni Sütun */}
                               <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Fee (Native)</th>
                               <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Fee (USD)</th>
                               <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Hash</th>
                             </tr>
                           </thead>
-                          <tbody className="bg-white divide-y divide-gray-200">
+                          <tbody className="bg-white divide-y divide-gray-200 text-black">
                             {selectedData.topTransactions.map((tx) => (
                               <tr key={tx.tx_hash}>
-                                <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-800">{new Date(tx.date).toLocaleDateString()}</td>
-                                <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-800">{tx.category}</td>
-                                {/* GÜNCELLEME: Yeni Hücre */}
-                                <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-800">{tx.feeNative.toFixed(6)}</td>
-                                <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-800">${tx.feeUSD.toFixed(2)}</td>
+                                <td className="px-4 py-2 whitespace-nowrap text-sm">{new Date(tx.date).toLocaleDateString()}</td>
+                                <td className="px-4 py-2 whitespace-nowrap text-sm">{tx.category}</td>
+                                <td className="px-4 py-2 whitespace-nowrap text-sm">{tx.feeNative.toFixed(6)}</td>
+                                <td className="px-4 py-2 whitespace-nowrap text-sm">${tx.feeUSD.toFixed(2)}</td>
                                 <td className="px-4 py-2 whitespace-nowrap text-sm">
                                   <a
-                                    // GÜNCELLEME: Linki dinamik hale getirelim (basitçe)
                                     href={
                                       selectedData.name === 'Polygon' 
                                         ? `https://polygonscan.com/tx/${tx.tx_hash}`
+                                        : selectedData.name === 'Arbitrum'
+                                        ? `https://arbiscan.io/tx/${tx.tx_hash}`
+                                        : selectedData.name === 'Optimism'
+                                        ? `https://optimistic.etherscan.io/tx/${tx.tx_hash}`
+                                        : selectedData.name === 'Base'
+                                        ? `https://basescan.org/tx/${tx.tx_hash}`
                                         : `https://etherscan.io/tx/${tx.tx_hash}`
                                     }
                                     target="_blank" 
@@ -366,9 +461,15 @@ function Dashboard() {
                       </div>
                     </>
                   )}
+                  
+                  {/* GÜNCELLEME: Donate butonu eklendi */}
+                  <DonateButton />
+                  
                 </>
               ) : (
-                 <></>
+                 <div className="text-center p-4 text-gray-600">
+                    No transactions found for this period.
+                 </div>
               )}
             </>
           )}
