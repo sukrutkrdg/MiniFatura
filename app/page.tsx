@@ -23,7 +23,7 @@ import {
 } from 'chart.js';
 import { frameHost } from '@farcaster/frame-sdk';
 
-// ✅ Chart.js setup
+// ✅ Chart.js setupkkk
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement);
 
 // ✅ RainbowKit Config
