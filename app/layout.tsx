@@ -14,7 +14,7 @@ export const metadata = {
       imageUrl: 'https://mini-fatura.vercel.app/image.png',
       splashImageUrl: 'https://mini-fatura.vercel.app/splash.png',
       splashBackgroundColor: '#6200EA',
-      subtitle: 'Wallet Fee Tracker', // GÜNCELLEME: 'Tota' idi, 'Tracker' yaptık
+      subtitle: 'Wallet Fee Tracker', // GÜNCELLEME:ppp 'Tota' idi, 'Tracker' yaptık
       description: 'Track total transaction fee spending across your wallets across multiple blockchains',
     }),
   },
