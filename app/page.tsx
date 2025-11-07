@@ -22,7 +22,7 @@ import {
   ArcElement,
 } from 'chart.js';
 import { frameHost } from '@farcaster/frame-sdk';
-import { parseEther } from 'viem'; // GÜNCELLEME: Donate için eklendi
+import { parseEther } from 'viem'; 
 
 // ✅ Chart.js setup
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement);
@@ -100,16 +100,15 @@ function getNativeCurrency(chainName: string): string {
   }
 }
 
-// GÜNCELLEME: Donate butonu için yeni bileşen
 function DonateButton() {
   const { isConnected } = useAccount();
   const { sendTransaction, isPending } = useSendTransaction();
-  const myDonationAddress = '0x973a31858f4d2125f48c880542da11a2796f12d6'; // Senin cüzdan adresin
+  const myDonationAddress = '0x156b58632d8ba7be86ebdee7b828a5476d8efbd0'; 
 
   const handleDonate = () => {
     sendTransaction({
       to: myDonationAddress,
-      value: parseEther('0.005'), // 0.005 ETH (veya chain'in native token'ı)
+      value: parseEther('0.005'), 
     });
   };
 
@@ -134,11 +133,9 @@ function DonateButton() {
 
 
 function Dashboard() {
-  const { address: connectedAddress, isConnected } = useAccount(); // Bağlı cüzdan
-  
-  // GÜNCELLEME: İki yeni state
-  const [manualAddress, setManualAddress] = useState(''); // Input alanındaki adres
-  const [activeAddress, setActiveAddress] = useState<string | null>(null); // Analiz edilen adres
+  const { address: connectedAddress, isConnected } = useAccount();
+  const [manualAddress, setManualAddress] = useState('');
+  const [activeAddress, setActiveAddress] = useState<string | null>(null); 
 
   const [chainStats, setChainStats] = useState<ChainStat[]>([]);
   const [selectedChain, setSelectedChain] = useState('Ethereum');
@@ -154,9 +151,7 @@ function Dashboard() {
     initFrame();
   }, []);
 
-  // GÜNCELLEME: Ana veri çekme useEffect'i artık 'activeAddress'e bağlı
   useEffect(() => {
-    // Analiz edilecek bir adres yoksa, hiçbir şey yapma
     if (!activeAddress) {
       setChainStats([]);
       setFailedChains([]);
@@ -172,7 +167,6 @@ function Dashboard() {
 
       try {
         const filterParam = (daysFilter !== 'all') ? `&days=${daysFilter}` : '';
-        // 'activeAddress'i kullanarak API'yi çağır
         const res = await fetch(`/api/process-wallet?address=${activeAddress}${filterParam}`);
         
         const data = await res.json();
@@ -204,11 +198,10 @@ function Dashboard() {
     };
 
     fetchData();
-  }, [activeAddress, daysFilter]); // GÜNCELLEME: Bağımlılık değişti
+  }, [activeAddress, daysFilter]);
 
   const selectedData = chainStats.find((s) => s.name === selectedChain);
 
-  // ... (chartData, categoryChartData, handleWalletClick fonksiyonları aynı kaldı) ...
   const chainChartData = {
     labels: chainStats.map((c) => c.name),
     datasets: [
@@ -239,7 +232,6 @@ function Dashboard() {
     window.location.href = deepLink;
   };
 
-  // GÜNCELLEME: Analizi tetikleyen fonksiyonlar
   const handleManualSubmit = () => {
     if (manualAddress) {
       setActiveAddress(manualAddress);
@@ -256,14 +248,12 @@ function Dashboard() {
   return (
     <main className="flex flex-col items-center justify-center min-h-screen p-4 bg-gray-50">
       
-      {/* GÜNCELLEME: ConnectButton'ı sayfanın sağına aldık, sadece "Donate" için */}
       <div className="w-full max-w-3xl flex justify-end mb-4">
         <ConnectButton />
       </div>
       
       <h1 className="text-3xl font-bold mb-6 text-indigo-700">Wallet Fee Tracker</h1>
 
-      {/* GÜNCELLEME: Yeni Analiz Formu */}
       <div className="w-full max-w-xl p-6 bg-white rounded-lg shadow-md mb-8">
         <h2 className="text-xl font-semibold text-center mb-4">Analyze Wallet Fees</h2>
         <div className="flex flex-col sm:flex-row gap-4">
@@ -286,7 +276,6 @@ function Dashboard() {
         <div className="text-center my-4 text-gray-500">OR</div>
 
         {isMobile() ? (
-          // Mobil için özel cüzdan bağlama butonu (sadece analiz için)
           <button
             onClick={() => setShowWalletModal(true)}
             className="w-full bg-gray-200 text-black px-6 py-3 rounded-xl shadow-sm hover:bg-gray-300 transition"
@@ -294,18 +283,17 @@ function Dashboard() {
             Connect Wallet to Analyze
           </button>
         ) : (
-          // Desktop için "Bağlı cüzdanımı kullan" butonu
           <button
             onClick={handleConnectedWalletSubmit}
             className="w-full bg-gray-200 text-black px-6 py-3 rounded-xl shadow-sm hover:bg-gray-300 transition disabled:opacity-50"
             disabled={!isConnected || loading}
           >
-            {loading && activeAddress === connectedAddress ? 'Analyzing...' : (isConnected ? `Analyze ${connectedAddress.substring(0, 6)}...` : 'Connect Wallet to Analyze')}
+            {/* TYPESCRIPT HATA DÜZELTMESİ: `isConnected`'ı `connectedAddress` ile birlikte kontrol et */}
+            {loading && activeAddress === connectedAddress ? 'Analyzing...' : (isConnected && connectedAddress ? `Analyze ${connectedAddress.substring(0, 6)}...` : 'Connect Wallet to Analyze')}
           </button>
         )}
       </div>
 
-      {/* GÜNCELLEME: Mobil cüzdan modal'ı (RainbowKit'in kendi butonu yerine) */}
       {showWalletModal && (
         <div className="fixed inset-0 bg-black/50 flex items-end justify-center z-50">
           <div className="bg-white w-full rounded-t-2xl p-6 shadow-lg">
@@ -334,7 +322,6 @@ function Dashboard() {
       )}
 
 
-      {/* GÜNCELLEME: Sonuç alanı artık 'activeAddress'e bağlı */}
       {activeAddress && (
         <div className="mt-6 w-full max-w-3xl">
           {loading ? (
@@ -462,7 +449,6 @@ function Dashboard() {
                     </>
                   )}
                   
-                  {/* GÜNCELLEME: Donate butonu eklendi */}
                   <DonateButton />
                   
                 </>
