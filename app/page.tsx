@@ -126,7 +126,7 @@ function DonateButton() {
       disabled={isPending}
       className="mt-8 w-full bg-green-600 text-white px-6 py-3 rounded-xl shadow-md hover:bg-green-700 transition disabled:opacity-50"
     >
-      {isPending ? 'Sending...' : 'Support this Tool (Donate 0.005 ETH)'}
+      {isPending ? 'Sending...' : 'Support this Tool (Donate 0.00005 ETH)'}
     </button>
   );
 }
