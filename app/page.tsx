@@ -108,7 +108,7 @@ function DonateButton() {
   const handleDonate = () => {
     sendTransaction({
       to: myDonationAddress,
-      value: parseEther('0.005'), 
+      value: parseEther('0.00005'), 
     });
   };
 
