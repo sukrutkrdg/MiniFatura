@@ -29,7 +29,7 @@ ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend,
 
 // ✅ RainbowKit Config
 const config = getDefaultConfig({
-  appName: 'Fee Tracker', // GÜNCELLEME: 'WalletFee Tracker' -> 'Fee Tracker'
+  appName: 'Fee Tracker',
   projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID!,
   chains: [mainnet, polygon, optimism, arbitrum, base],
   ssr: true,
@@ -130,14 +130,8 @@ function Dashboard() {
   const [failedChains, setFailedChains] = useState<string[]>([]);
   const [daysFilter, setDaysFilter] = useState('all');
 
-  const { address: connectedAddress, isConnected } = useAccount({
-    onDisconnect() {
-      console.log('Wallet disconnected, clearing active analysis.');
-      setActiveAddress(null);
-      setChainStats([]);
-      setError(null);
-    }
-  });
+  // BAĞLANTI KESİLME DÜZELTMESİ: Hatalı 'onDisconnect' parametresini kaldır
+  const { address: connectedAddress, isConnected } = useAccount();
 
   const chainNames = chainStats.map(c => c.name);
 
@@ -145,16 +139,21 @@ function Dashboard() {
     initFrame();
   }, []);
 
+  // BAĞLANTI KESİLME DÜZELTMESİ: 
+  // 'onDisconnect' yerine 'isConnected' durumunu izleyen bir useEffect ekle.
   useEffect(() => {
     if (!isConnected) {
+      // Cüzdan bağlı değilse (veya bağlantı kesildiyse),
+      // aktif analizi temizle.
       console.log('Wallet disconnected, clearing active analysis.');
       setActiveAddress(null);
       setChainStats([]);
       setError(null);
     }
-  }, [isConnected]); 
+  }, [isConnected]); // Sadece 'isConnected' durumu değiştiğinde çalışır.
 
   
+  // Bu useEffect (veri çekme) 'activeAddress' değişimini izler
   useEffect(() => {
     if (!activeAddress) {
       setChainStats([]);
@@ -241,6 +240,7 @@ function Dashboard() {
       setActiveAddress(connectedAddress);
       setManualAddress(connectedAddress); 
     } else {
+       // Bu butona basıldığında bağlı değilse, kullanıcıyı sağ üstteki butona yönlendir
        alert("Please connect your wallet first using the 'Connect Wallet' button in the top right corner.");
     }
   };
@@ -253,8 +253,7 @@ function Dashboard() {
         <ConnectButton />
       </div>
       
-      {/* GÜNCELLEME: Burayı değiştirdik */}
-      <h1 className="text-3xl font-bold mb-6 text-indigo-700">Fee Tracker</h1>
+      <h1 className="text-3xl font-bold mb-6 text-indigo-700">Wallet Fee Tracker</h1>
 
       <div className="w-full max-w-xl p-6 bg-white rounded-lg shadow-md mb-8">
         <h2 className="text-xl font-semibold text-center mb-4 text-gray-900">Analyze Wallet Fees</h2>
