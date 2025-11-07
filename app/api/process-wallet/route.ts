@@ -87,7 +87,7 @@ async function fetchChainTransactions(address: string, chainSlug: string) {
   return allItems;
 }
 
-// GÜNCELLEME: 'walletAddress' parametresi eklendi
+// GÜNCELLEME: 'walletAddress' parametredddddddddsi eklendi
 function processTransactions(items: any[], walletAddress: string): Omit<ChainStat, 'name'> {
   const categories: Record<string, { totalFeeUSD: number; count: number }> = {};
   const transactions: { feeUSD: number; feeNative: number; tx_hash: string; date: string; category: string }[] = [];
