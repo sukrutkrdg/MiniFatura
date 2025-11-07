@@ -1,6 +1,24 @@
 import { NextResponse, NextRequest } from 'next/server';
 import { supabase } from '../../../lib/supabaseClient';
 
+// GÜNCELLEME: ChainStat tipini, başarılı zincirler dizisi için burada da tanımla
+interface TopTx {
+  tx_hash: string;
+  feeUSD: number;
+  feeNative: number;
+  category: string;
+  date: string;
+}
+
+interface ChainStat {
+  name: string;
+  totalFeeUSD: number;
+  totalFeeNative: number;
+  txCount: number;
+  categories: Record<string, { totalFeeUSD: number; count: number }>;
+  topTransactions: TopTx[];
+}
+
 // Zincir tanımlamaları
 const chains = [
   { name: 'Ethereum', slug: 'eth-mainnet' },
@@ -74,17 +92,13 @@ async function fetchChainTransactions(address: string, chainSlug: string) {
 }
 
 // İşlem verisini işleyen ana fonksiyon
-// GÜNCELLEME: 'walletAddress' parametresi eklendi
-function processTransactions(items: any[], walletAddress: string) {
+function processTransactions(items: any[], walletAddress: string): Omit<ChainStat, 'name'> {
   const categories: Record<string, { totalFeeUSD: number; count: number }> = {};
   const transactions: { feeUSD: number; feeNative: number; tx_hash: string; date: string; category: string }[] = [];
-  let totalFeeNative = 0;
+  let totalFeeNative = 0; 
 
   items.forEach((tx: any) => {
     
-    // KRİTİK HESAPLAMA DÜZELTMESİ:
-    // Sadece işlemi *biz* başlattıysak (from_address = bizim adresimiz) ücreti say.
-    // Cüzdan adreslerini karşılaştırırken case-insensitive (küçük/büyük harf duyarsız) ol.
     const isSender = tx.from_address.toLowerCase() === walletAddress.toLowerCase();
     
     let feeInNativeToken = 0;
@@ -96,17 +110,14 @@ function processTransactions(items: any[], walletAddress: string) {
       feeUSD = feeInNativeToken * gasRateUSD;
       totalFeeNative += feeInNativeToken;
     }
-    // Eğer 'isSender' değilse (yani biz alıcıysak), feeUSD ve feeNative 0 (sıfır) olarak kalır
-    // ve toplama dahil edilmez.
 
     const category = classifyTransaction(tx);
     if (!categories[category]) {
       categories[category] = { totalFeeUSD: 0, count: 0 };
     }
-    categories[category].totalFeeUSD += feeUSD; // Sadece bizim ödediğimiz fee'yi ekler
+    categories[category].totalFeeUSD += feeUSD;
     categories[category].count += 1;
 
-    // İşlem listesine (Top 10) sadece bizim ödediğimiz (fee > 0) işlemleri ekleyelim
     if (feeUSD > 0) {
       transactions.push({
         feeUSD,
@@ -127,9 +138,9 @@ function processTransactions(items: any[], walletAddress: string) {
   return {
     totalFeeUSD,
     totalFeeNative,
-    txCount: items.length, // Toplam işlem sayısını (gelen/giden) göstermeye devam edebiliriz
+    txCount: items.length,
     categories,
-    topTransactions, // Bu liste artık sadece bizim ödediğimiz ücretleri içerecek
+    topTransactions,
   };
 }
 
@@ -179,7 +190,6 @@ export async function GET(req: NextRequest) {
         filteredItems = items.filter(tx => new Date(tx.block_signed_at) > dateLimit);
       }
       
-      // GÜNCELLEME: 'walletAddress' parametresini 'processTransactions'a iletiyoruz
       const processedData = processTransactions(filteredItems, walletAddress);
       
       return {
@@ -190,16 +200,23 @@ export async function GET(req: NextRequest) {
 
     const results = await Promise.allSettled(promises);
     
-    const successfulChains = results
-      .filter(r => r.status === 'fulfilled')
-      .map(r => (r as PromiseFulfilledResult<any>).value);
-      
-    const failedChains = results
-      .filter(r => r.status === 'rejected')
-      .map((r, index) => chains[index].name);
+    // KRİTİK HATA YÖNETİMİ DÜZELTMESİ
+    const successfulChains: ChainStat[] = [];
+    const failedChains: string[] = [];
+
+    results.forEach((result, index) => {
+      if (result.status === 'fulfilled') {
+        successfulChains.push(result.value);
+      } else {
+        // Hata durumunda, doğru 'index'i kullanarak 'chains' dizisinden ismi al
+        failedChains.push(chains[index].name);
+        console.error(`Error processing chain ${chains[index].name}:`, result.reason); // Sunucuya logla
+      }
+    });
+    // DÜZELTME BİTİŞ
 
     if (successfulChains.length === 0) {
-      const firstError = (results[0] as PromiseRejectedResult).reason.message;
+      const firstError = (results.find(r => r.status === 'rejected') as PromiseRejectedResult)?.reason.message;
       throw new Error(`All chains failed to fetch. Last error: ${firstError || 'Unknown error'}`);
     }
 
