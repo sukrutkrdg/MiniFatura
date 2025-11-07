@@ -1,7 +1,7 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server'; // GÜNCELLEME: NextRequest eklendi
 import { supabase } from '../../../lib/supabaseClient';
 
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) { // GÜNCELLEME: 'Request' -> 'NextRequest'
   const { searchParams } = new URL(req.url);
   const wallet = searchParams.get('wallet');
 
@@ -18,7 +18,7 @@ export async function GET(req: Request) {
   const totalFee = data?.total_fee ? `$${data.total_fee.toFixed(2)} USD` : 'No Data';
   const topCategory = data?.top_category || 'N/A';
   
-  const baseUrl = 'https://mini-fatura.vercel.app'; // Burayı kendi Vercel URL'niz ile değiştirin
+  const baseUrl = 'https://mini-fatura.vercel.app'; 
 
   return new NextResponse(
     `

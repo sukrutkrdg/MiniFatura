@@ -1,8 +1,8 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server'; // GÜNCELLEME: NextRequest eklendi
 
-export const runtime = 'edge'; // Edge uyumlu
+export const runtime = 'edge';
 
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) { // GÜNCELLEME: 'Request' -> 'NextRequest'
   const { searchParams } = new URL(req.url);
   const fee = searchParams.get('fee') || '$0.00 USD';
   const category = searchParams.get('category') || 'Unknown';

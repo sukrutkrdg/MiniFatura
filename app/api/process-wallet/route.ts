@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server'; // GÜNCELLEME: NextRequest eklendi
 import { supabase } from '../../../lib/supabaseClient';
 
 // Zincir tanımlamaları
@@ -74,18 +74,17 @@ async function fetchChainTransactions(address: string, chainSlug: string) {
 }
 
 // İşlem verisini işleyen ana fonksiyon
-// GÜNCELLEME: totalFeeNative eklendi
 function processTransactions(items: any[]) {
   const categories: Record<string, { totalFeeUSD: number; count: number }> = {};
   const transactions: { feeUSD: number; feeNative: number; tx_hash: string; date: string; category: string }[] = [];
-  let totalFeeNative = 0; // GÜNCELLEME: Native fee için toplayıcı
+  let totalFeeNative = 0; 
 
   items.forEach((tx: any) => {
     const feeInNativeToken = (Number(tx.fees_paid) || 0) / 1e18;
     const gasRateUSD = tx.gas_quote_rate || 0;
     const feeUSD = feeInNativeToken * gasRateUSD;
     
-    totalFeeNative += feeInNativeToken; // GÜNCELLEME: Native fee'yi topla
+    totalFeeNative += feeInNativeToken; 
 
     const category = classifyTransaction(tx);
     if (!categories[category]) {
@@ -96,7 +95,7 @@ function processTransactions(items: any[]) {
 
     transactions.push({
       feeUSD,
-      feeNative: feeInNativeToken, // GÜNCELLEME: Native fee'yi objeye ekle
+      feeNative: feeInNativeToken,
       tx_hash: tx.tx_hash,
       date: tx.block_signed_at,
       category,
@@ -111,15 +110,16 @@ function processTransactions(items: any[]) {
   
   return {
     totalFeeUSD,
-    totalFeeNative, // GÜNCELLEME: Native fee'yi döndür
+    totalFeeNative,
     txCount: items.length,
     categories,
     topTransactions,
   };
 }
 
+
 // Frontend'den çağrılacak ana API fonksiyonu
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) { // GÜNCELLEME: 'Request' -> 'NextRequest'
   const { searchParams } = new URL(req.url);
   const walletAddress = searchParams.get('address');
   const daysFilter = searchParams.get('days');
@@ -201,7 +201,7 @@ export async function GET(req: Request) {
       supabase.from('wallet_stats').upsert({
         wallet_address: walletAddress,
         total_fee: totalFeeUSDAllChains,
-        chain_stats_all_time: successfulChains, // GÜNCELLEME: Artık 'totalFeeNative' de burada
+        chain_stats_all_time: successfulChains,
         updated_at: new Date().toISOString(),
         top_category: topCategory
       }).then(({ error: upsertError }) => {
