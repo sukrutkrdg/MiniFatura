@@ -22,7 +22,7 @@ import {
   ArcElement,
 } from 'chart.js';
 import { frameHost } from '@farcaster/frame-sdk';
-import { parseEther } from 'viem'; 
+import { parseEther } from 'viem';
 
 // ✅ Chart.js setup
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement);
@@ -37,19 +37,9 @@ const config = getDefaultConfig({
 
 const queryClient = new QueryClient();
 
-// ✅ Mobil wallet deep link templates
-const WALLET_LINKS: Record<string, string> = {
-  metamask: 'https://metamask.app.link/wc?uri=',
-  trust: 'https://link.trustwallet.com/wc?uri=',
-  okx: 'okxwallet://wc?uri=',
-  coinbase: 'https://go.cb-w.com/wc?uri=',
-};
-
-// ✅ Basit mobil kontrolü
-function isMobile() {
-  if (typeof navigator === 'undefined') return false;
-  return /Mobi|Android/i.test(navigator.userAgent);
-}
+// GÜNCELLEME: Tüm bu manuel bağlantı mantığı kaldırıldı
+// const WALLET_LINKS: Record<string, string> = { ... };
+// function isMobile() { ... }
 
 // ✅ Farcaster frame fix
 async function initFrame() {
@@ -100,6 +90,7 @@ function getNativeCurrency(chainName: string): string {
   }
 }
 
+// ✅ Donate Butonu (Değişiklik yok, bu harika çalışır)
 function DonateButton() {
   const { isConnected } = useAccount();
   const { sendTransaction, isPending } = useSendTransaction();
@@ -140,7 +131,8 @@ function Dashboard() {
   const [chainStats, setChainStats] = useState<ChainStat[]>([]);
   const [selectedChain, setSelectedChain] = useState('Ethereum');
   const [loading, setLoading] = useState(false);
-  const [showWalletModal, setShowWalletModal] = useState(false);
+  // GÜNCELLEME: Mobil modal state'i kaldırıldı
+  // const [showWalletModal, setShowWalletModal] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [failedChains, setFailedChains] = useState<string[]>([]);
   const [daysFilter, setDaysFilter] = useState('all');
@@ -151,6 +143,24 @@ function Dashboard() {
     initFrame();
   }, []);
 
+  // GÜNCELLEME: Cüzdan bağlandığında analizi OTOMATİK tetikle
+  useEffect(() => {
+    if (isConnected && connectedAddress) {
+      // Eğer kullanıcı manuel bir adres girmediyse,
+      // veya manuel girdiği adres zaten bağlı olan adrese eşitse,
+      // bağlı olan cüzdanı 'aktif' adres yap.
+      if (!manualAddress || manualAddress === connectedAddress) {
+        setActiveAddress(connectedAddress);
+      }
+    }
+    // Bağlantı kesilirse, adresi temizle (sonuçları gizler)
+    if (!isConnected && activeAddress === connectedAddress) {
+        setActiveAddress(null);
+        setManualAddress(''); // Input'u da temizle
+    }
+  }, [isConnected, connectedAddress, activeAddress, manualAddress]); // Bağımlılıklar güncellendi
+
+  
   useEffect(() => {
     if (!activeAddress) {
       setChainStats([]);
@@ -226,36 +236,31 @@ function Dashboard() {
     ],
   };
 
-  const handleWalletClick = (wallet: keyof typeof WALLET_LINKS) => {
-    const wcUri = encodeURIComponent(window.location.href);
-    const deepLink = `${WALLET_LINKS[wallet]}${wcUri}`;
-    window.location.href = deepLink;
-  };
-
+  // GÜNCELLEME: Bu fonksiyonlar artık kullanılmıyor
+  // const handleWalletClick = (wallet: keyof typeof WALLET_LINKS) => { ... };
+  // const handleConnectedWalletSubmit = () => { ... };
+  
   const handleManualSubmit = () => {
     if (manualAddress) {
       setActiveAddress(manualAddress);
     }
   };
 
-  const handleConnectedWalletSubmit = () => {
-    if (isConnected && connectedAddress) {
-      setActiveAddress(connectedAddress);
-    }
-  };
-
-
   return (
     <main className="flex flex-col items-center justify-center min-h-screen p-4 bg-gray-50">
       
+      {/* Sağ üstteki ConnectButton (sadece Donate için) */}
       <div className="w-full max-w-3xl flex justify-end mb-4">
         <ConnectButton />
       </div>
       
       <h1 className="text-3xl font-bold mb-6 text-indigo-700">Wallet Fee Tracker</h1>
 
+      {/* GÜNCELLEME: UI akışı basitleştirildi */}
       <div className="w-full max-w-xl p-6 bg-white rounded-lg shadow-md mb-8">
         <h2 className="text-xl font-semibold text-center mb-4">Analyze Wallet Fees</h2>
+        
+        {/* Seçenek 1: Manuel Adres Girişi */}
         <div className="flex flex-col sm:flex-row gap-4">
           <input
             type="text"
@@ -275,53 +280,17 @@ function Dashboard() {
         
         <div className="text-center my-4 text-gray-500">OR</div>
 
-        {isMobile() ? (
-          <button
-            onClick={() => setShowWalletModal(true)}
-            className="w-full bg-gray-200 text-black px-6 py-3 rounded-xl shadow-sm hover:bg-gray-300 transition"
-          >
-            Connect Wallet to Analyze
-          </button>
-        ) : (
-          <button
-            onClick={handleConnectedWalletSubmit}
-            className="w-full bg-gray-200 text-black px-6 py-3 rounded-xl shadow-sm hover:bg-gray-300 transition disabled:opacity-50"
-            disabled={!isConnected || loading}
-          >
-            {/* TYPESCRIPT HATA DÜZELTMESİ: `isConnected`'ı `connectedAddress` ile birlikte kontrol et */}
-            {loading && activeAddress === connectedAddress ? 'Analyzing...' : (isConnected && connectedAddress ? `Analyze ${connectedAddress.substring(0, 6)}...` : 'Connect Wallet to Analyze')}
-          </button>
-        )}
+        {/* Seçenek 2: Cüzdan Bağla (RainbowKit) */}
+        {/* Bu buton hem mobil hem de masaüstü için doğru modal'ı açar */}
+        <div className="flex justify-center">
+          <ConnectButton label="Connect Wallet to Analyze Your Fees" />
+        </div>
       </div>
 
-      {showWalletModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-end justify-center z-50">
-          <div className="bg-white w-full rounded-t-2xl p-6 shadow-lg">
-            <h2 className="text-lg font-semibold text-center mb-4">
-              Select Wallet
-            </h2>
-            <div className="grid grid-cols-2 gap-4">
-              {Object.keys(WALLET_LINKS).map((wallet) => (
-                <button
-                  key={wallet}
-                  onClick={() => handleWalletClick(wallet as keyof typeof WALLET_LINKS)}
-                  className="border rounded-xl p-3 text-sm font-medium hover:bg-indigo-50"
-                >
-                  {wallet.charAt(0).toUpperCase() + wallet.slice(1)} Wallet
-                </button>
-              ))}
-            </div>
-            <button
-              onClick={() => setShowWalletModal(false)}
-              className="mt-4 w-full text-center text-gray-500"
-            >
-              Close
-            </button>
-          </div>
-        </div>
-      )}
+      {/* GÜNCELLEME: Manuel mobil modal kaldırıldı */}
+      {/* {showWalletModal && ( ... )} */}
 
-
+      {/* Sonuç Alanı (Değişiklik yok, 'activeAddress'e göre çalışır) */}
       {activeAddress && (
         <div className="mt-6 w-full max-w-3xl">
           {loading ? (
@@ -449,6 +418,7 @@ function Dashboard() {
                     </>
                   )}
                   
+                  {/* Donate butonu (sağ üst köşedeki cüzdan bağlıysa çalışır) */}
                   <DonateButton />
                   
                 </>
@@ -465,6 +435,7 @@ function Dashboard() {
   );
 }
 
+// Son Kısım (Değişiklik yok)
 export default function Page() {
   return (
     <WagmiProvider config={config}>
