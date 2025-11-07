@@ -21,7 +21,6 @@ import {
   Legend,
   ArcElement,
 } from 'chart.js';
-// ARTIK GEREKLİ DEĞİL: import { supabase } from '../lib/supabaseClient';
 import { frameHost } from '@farcaster/frame-sdk';
 
 // ✅ Chart.js setup
@@ -30,7 +29,6 @@ ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend,
 // ✅ RainbowKit Config
 const config = getDefaultConfig({
   appName: 'WalletFee Tracker',
-  // GÜVENLİK: API Key'i buradan SİLDİK. Artık gerekli değil.
   projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID!,
   chains: [mainnet, polygon, optimism, arbitrum, base],
   ssr: true,
@@ -70,11 +68,37 @@ async function initFrame() {
   }
 }
 
+// GÜNCELLEME: Native fee eklendi
+interface TopTx {
+  tx_hash: string;
+  feeUSD: number;
+  feeNative: number; // Eklendi
+  category: string;
+  date: string;
+}
+
 interface ChainStat {
   name: string;
   totalFeeUSD: number;
+  totalFeeNative: number; // Eklendi
   txCount: number;
   categories: Record<string, { totalFeeUSD: number; count: number }>;
+  topTransactions: TopTx[];
+}
+
+// GÜNCELLEME: Native para birimini almak için yardımcı fonksiyon
+function getNativeCurrency(chainName: string): string {
+  switch (chainName) {
+    case 'Polygon':
+      return 'MATIC';
+    case 'Ethereum':
+    case 'Optimism':
+    case 'Arbitrum':
+    case 'Base':
+      return 'ETH';
+    default:
+      return 'ETH';
+  }
 }
 
 function Dashboard() {
@@ -84,42 +108,46 @@ function Dashboard() {
   const [loading, setLoading] = useState(false);
   const [showWalletModal, setShowWalletModal] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
-  // GÜVENLİK: 'chains' dizisi artık sunucu tarafında (api/process-wallet)
-  // Sadece UI'da göstermek için (veya sunucudan gelen yanıta göre) tutabiliriz
-  // Şimdilik gelen veriden alacağız.
+  const [failedChains, setFailedChains] = useState<string[]>([]);
+  const [daysFilter, setDaysFilter] = useState('all');
+
   const chainNames = chainStats.map(c => c.name);
 
   useEffect(() => {
     initFrame();
   }, []);
 
-  // GÜVENLİK: Tüm veri çekme ve sınıflandırma fonksiyonları buradan kaldırıldı.
-
   useEffect(() => {
     if (!isConnected || !address) {
-      setChainStats([]); // Cüzdan bağlantısı kesilirse veriyi temizle
+      setChainStats([]);
+      setFailedChains([]);
+      setError(null);
+      setLoading(false);
       return;
     }
 
     const fetchData = async () => {
       setLoading(true);
       setError(null);
+      setFailedChains([]);
 
       try {
-        // GÜVENLİK: Tüm mantık sunucuya taşındı. Sadece API'yi çağırıyoruz.
-        const res = await fetch(`/api/process-wallet?address=${address}`);
+        const filterParam = (daysFilter !== 'all') ? `&days=${daysFilter}` : '';
+        const res = await fetch(`/api/process-wallet?address=${address}${filterParam}`);
         
-        if (!res.ok) {
-          const errorData = await res.json();
-          throw new Error(errorData.error || 'Failed to fetch wallet data from server');
-        }
-
         const data = await res.json();
         
+        if (!res.ok) {
+          throw new Error(data.error || 'Failed to fetch wallet data from server');
+        }
+
         setChainStats(data.chainStats);
-        // Varsayılan seçili zinciri ayarla
-        if (data.chainStats.length > 0 && !chainNames.includes(selectedChain)) {
+        
+        if (data.failedChains && data.failedChains.length > 0) {
+            setFailedChains(data.failedChains);
+        }
+        
+        if (data.chainStats.length > 0 && !data.chainStats.find((c: ChainStat) => c.name === selectedChain)) {
             setSelectedChain(data.chainStats[0].name);
         }
 
@@ -136,7 +164,7 @@ function Dashboard() {
     };
 
     fetchData();
-  }, [address, isConnected]); // 'selectedChain'i bağımlılıktan kaldırdık
+  }, [address, isConnected, daysFilter]);
 
   const selectedData = chainStats.find((s) => s.name === selectedChain);
 
@@ -227,44 +255,122 @@ function Dashboard() {
                 <p><strong>Error!</strong></p>
                 <p>{error}</p>
             </div>
-          ) : chainStats.length > 0 ? ( // Sadece veri varsa grafikleri göster
+          ) : (
             <>
-              <div className="mt-4">
-                <label className="mr-2">Select Chain:</label>
-                <select
-                  value={selectedChain}
-                  onChange={(e) => setSelectedChain(e.target.value)}
-                  className="border p-2 rounded"
-                >
-                  {chainNames.map((name) => (
-                    <option key={name} value={name}>
-                      {name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {selectedData && (
-                <>
-                  <p className="mt-4">
-                    Total Spend ({selectedData.name}):{' '}
-                    <strong>${selectedData.totalFeeUSD.toFixed(2)} USD</strong>
-                  </p>
-                  <p>
-                    Total Transactions: <strong>{selectedData.txCount}</strong>
-                  </p>
-                  
-                  <h2 className="text-lg font-semibold mt-8">{selectedData.name} - Spend by Category</h2>
-                  <Pie data={categoryChartData} className="mt-6" />
-                </>
+              {failedChains.length > 0 && (
+                <div className="text-center p-3 mb-4 bg-yellow-100 text-yellow-800 rounded-lg">
+                  <p><strong>Warning:</strong> Data for the following chains could not be loaded: {failedChains.join(', ')}.</p>
+                </div>
               )}
 
-              <h2 className="text-lg font-semibold mt-8">Total Spend by Chain (USD)</h2>
-              <Bar data={chainChartData} className="mt-2" />
+              {chainStats.length > 0 ? (
+                <>
+                  <div className="flex justify-between items-center mt-4">
+                    <div>
+                      <label className="mr-2">Select Chain:</label>
+                      <select
+                        value={selectedChain}
+                        onChange={(e) => setSelectedChain(e.target.value)}
+                        className="border p-2 rounded"
+                      >
+                        {chainNames.map((name) => (
+                          <option key={name} value={name}>
+                            {name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="mr-2">Date Range:</label>
+                      <select
+                        value={daysFilter}
+                        onChange={(e) => setDaysFilter(e.target.value)}
+                        className="border p-2 rounded"
+                      >
+                        <option value="all">All Time</option>
+                        <option value="30">Last 30 Days</option>
+                        <option value="7">Last 7 Days</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {selectedData && (
+                    <>
+                      <p className="mt-4">
+                        Total Spend ({selectedData.name}):{' '}
+                        <strong>${selectedData.totalFeeUSD.toFixed(2)} USD</strong>
+                      </p>
+                      {/* GÜNCELLEME: Native Fee göstergesi eklendi */}
+                      <p className="mt-1 text-sm text-gray-600">
+                        (Total Native Spend:{' '}
+                        <strong>
+                          {selectedData.totalFeeNative.toFixed(6)}{' '}
+                          {getNativeCurrency(selectedData.name)}
+                        </strong>
+                        )
+                      </p>
+                      <p className="mt-1">
+                        Total Transactions: <strong>{selectedData.txCount}</strong>
+                      </p>
+                      
+                      <h2 className="text-lg font-semibold mt-8">{selectedData.name} - Spend by Category</h2>
+                      <Pie data={categoryChartData} className="mt-6" />
+                    </>
+                  )}
+
+                  <h2 className="text-lg font-semibold mt-8">Total Spend by Chain (USD)</h2>
+                  <Bar data={chainChartData} className="mt-2" />
+
+                  {selectedData && selectedData.topTransactions.length > 0 && (
+                    <>
+                      <h2 className="text-lg font-semibold mt-8">Top 10 Expensive Transactions on {selectedData.name}</h2>
+                      <div className="overflow-x-auto mt-2">
+                        <table className="min-w-full divide-y divide-gray-200">
+                          <thead className="bg-gray-100">
+                            <tr>
+                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Category</th>
+                              {/* GÜNCELLEME: Yeni Sütun */}
+                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Fee (Native)</th>
+                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Fee (USD)</th>
+                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Hash</th>
+                            </tr>
+                          </thead>
+                          <tbody className="bg-white divide-y divide-gray-200">
+                            {selectedData.topTransactions.map((tx) => (
+                              <tr key={tx.tx_hash}>
+                                <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-800">{new Date(tx.date).toLocaleDateString()}</td>
+                                <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-800">{tx.category}</td>
+                                {/* GÜNCELLEME: Yeni Hücre */}
+                                <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-800">{tx.feeNative.toFixed(6)}</td>
+                                <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-800">${tx.feeUSD.toFixed(2)}</td>
+                                <td className="px-4 py-2 whitespace-nowrap text-sm">
+                                  <a
+                                    // GÜNCELLEME: Linki dinamik hale getirelim (basitçe)
+                                    href={
+                                      selectedData.name === 'Polygon' 
+                                        ? `https://polygonscan.com/tx/${tx.tx_hash}`
+                                        : `https://etherscan.io/tx/${tx.tx_hash}`
+                                    }
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    className="text-indigo-600 hover:text-indigo-900"
+                                  >
+                                    {tx.tx_hash.substring(0, 10)}...
+                                  </a>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </>
+                  )}
+                </>
+              ) : (
+                 <></>
+              )}
             </>
-          ) : (
-             // Cüzdan bağlı ama veri yoksa (henüz yüklenmediyse veya boşsa)
-             <></>
           )}
         </div>
       )}

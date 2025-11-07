@@ -1,11 +1,9 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server'; // GÜNCELLEME: NextRequest eklendi
 import { supabase } from '../../../lib/supabaseClient';
 
 // Bu, Vercel Cron Job'unuz tarafından tetiklenecek
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) { // GÜNCELLEME: 'Request' -> 'NextRequest'
   // Cron Güvenliği:
-  // Vercel'e 'CRON_SECRET' adında bir ortam değişkeni eklemeniz gerekir.
-  // Bu, başkalarının bu rotayı tetiklemesini engeller.
   const authHeader = req.headers.get('authorization');
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -32,15 +30,10 @@ export async function GET(req: Request) {
       : 'http://localhost:3000';
 
     // 2. Her cüzdan için veri güncelleme API'sini tetikle (await kullanma)
-    // "Fire-and-forget": Cron job'un timeout'a uğramaması için
-    // her bir isteğin bitmesini BEKLEMİYORUZ.
     wallets.forEach(wallet => {
       fetch(`${VERCEL_URL}/api/process-wallet?address=${wallet.wallet_address}`, {
         method: 'GET',
-        headers: {
-          // Gerekirse iç güvenlik için başka bir anahtar ekleyebilirsiniz,
-          // ancak 'process-wallet' rotası zaten cache'i güncellediği için şimdilik public
-        }
+        headers: {}
       })
       .then(res => res.json())
       .then(data => {

@@ -74,15 +74,19 @@ async function fetchChainTransactions(address: string, chainSlug: string) {
 }
 
 // İşlem verisini işleyen ana fonksiyon
+// GÜNCELLEME: totalFeeNative eklendi
 function processTransactions(items: any[]) {
   const categories: Record<string, { totalFeeUSD: number; count: number }> = {};
-  const transactions: { feeUSD: number; tx_hash: string; date: string; category: string }[] = [];
+  const transactions: { feeUSD: number; feeNative: number; tx_hash: string; date: string; category: string }[] = [];
+  let totalFeeNative = 0; // GÜNCELLEME: Native fee için toplayıcı
 
   items.forEach((tx: any) => {
     const feeInNativeToken = (Number(tx.fees_paid) || 0) / 1e18;
     const gasRateUSD = tx.gas_quote_rate || 0;
     const feeUSD = feeInNativeToken * gasRateUSD;
     
+    totalFeeNative += feeInNativeToken; // GÜNCELLEME: Native fee'yi topla
+
     const category = classifyTransaction(tx);
     if (!categories[category]) {
       categories[category] = { totalFeeUSD: 0, count: 0 };
@@ -92,6 +96,7 @@ function processTransactions(items: any[]) {
 
     transactions.push({
       feeUSD,
+      feeNative: feeInNativeToken, // GÜNCELLEME: Native fee'yi objeye ekle
       tx_hash: tx.tx_hash,
       date: tx.block_signed_at,
       category,
@@ -100,13 +105,13 @@ function processTransactions(items: any[]) {
 
   const totalFeeUSD = transactions.reduce((s, f) => s + f.feeUSD, 0);
   
-  // Madde 2: En maliyetli 10 işlemi bul
   const topTransactions = transactions
     .sort((a, b) => b.feeUSD - a.feeUSD)
     .slice(0, 10);
   
   return {
     totalFeeUSD,
+    totalFeeNative, // GÜNCELLEME: Native fee'yi döndür
     txCount: items.length,
     categories,
     topTransactions,
@@ -117,156 +122,15 @@ function processTransactions(items: any[]) {
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const walletAddress = searchParams.get('address');
-  const daysFilter = searchParams.get('days'); // Madde 3: Tarih filtresini al
+  const daysFilter = searchParams.get('days');
+  const useCache = !daysFilter || daysFilter === 'all';
 
   if (!walletAddress) {
     return NextResponse.json({ error: 'Wallet address is required' }, { status: 400 });
   }
 
   try {
-    // 1. Önbelleği (Supabase) Kontrol Et (Cache HER ZAMAN tüm zamanları tutar)
-    const { data: cachedData, error: cacheError } = await supabase
-      .from('wallet_stats')
-      .select('chain_stats_all_time, updated_at') // Sadece tüm zamanlar verisini çek
-      .eq('wallet_address', walletAddress)
-      .single();
-
-    if (cacheError && cacheError.code !== 'PGRST116') {
-       console.error('Supabase read error:', cacheError);
-    }
-    
-    let allTimeStats: any[] = [];
-    const oneHourAgo = new Date(new Date().getTime() - 60 * 60 * 1000).toISOString();
-
-    if (cachedData && cachedData.updated_at > oneHourAgo) {
-      console.log('Using cache (Supabase).');
-      allTimeStats = cachedData.chain_stats_all_time;
-    } else {
-      console.log('Cache is old or missing. Calling Covalent API...');
-      
-      // 2. Önbellek yoksa Covalent'i çağır
-      // Madde 4: Promise.all -> Promise.allSettled
-      const promises = chains.map(chain => 
-        fetchChainTransactions(walletAddress, chain.slug)
-          .then(items => ({
-            name: chain.name,
-            ...processTransactions(items) // İşlemeyi de burada yap
-          }))
-      );
-      
-      const results = await Promise.allSettled(promises);
-      
-      // Başarılı ve başarısız olanları ayır
-      const successfulChains = results
-        .filter(r => r.status === 'fulfilled')
-        .map(r => (r as PromiseFulfilledResult<any>).value);
-        
-      const failedChains = results
-        .filter(r => r.status === 'rejected')
-        .map((r, index) => ({
-            name: chains[index].name,
-            reason: (r as PromiseRejectedResult).reason.message
-        }));
-
-      if (successfulChains.length === 0) {
-        throw new Error(`All chains failed to fetch. Last error: ${failedChains[0]?.reason || 'Unknown error'}`);
-      }
-      
-      allTimeStats = successfulChains;
-      
-      // 3. Yeni veriyi Supabase'e kaydet (Tüm zamanlar)
-      // Not: Başarısız zincirler cache'e dahil edilmez.
-      const totalFeeUSDAllChains = successfulChains.reduce((s, c) => s + c.totalFeeUSD, 0);
-      const topCategory = Object.entries(
-          successfulChains.flatMap(r => Object.entries(r.categories as Record<string, { totalFeeUSD: number; count: number }>))
-                 .reduce((acc, [cat, data]) => {
-                     if (!acc[cat]) acc[cat] = 0;
-                     acc[cat] += data.totalFeeUSD;
-                     return acc;
-                 }, {} as Record<string, number>)
-      ).sort(([, feeA], [, feeB]) => feeB - feeA)[0]?.[0] || 'Transfer';
-
-      supabase.from('wallet_stats').upsert({
-        wallet_address: walletAddress,
-        total_fee: totalFeeUSDAllChains, // Bu artık sadece başarılı olanların toplamı
-        chain_stats_all_time: successfulChains, // 'chain_stats' -> 'chain_stats_all_time'
-        updated_at: new Date().toISOString(),
-        top_category: topCategory
-      }).then(({ error: upsertError }) => {
-          if(upsertError) {
-              console.error("Supabase upsert error:", upsertError);
-          }
-      });
-      
-      // Hata varsa, bu hataları da frontend'e yolla
-      if (failedChains.length > 0) {
-         return NextResponse.json({ 
-           chainStats: successfulChains, // Başarılı olanları yine de gönder
-           failedChains: failedChains.map(f => f.name), // Hangi zincirlerin patladığını söyle
-           source: 'api-partial' 
-         });
-      }
-    }
-
-    // 4. Madde 3: Tarih Filtresini uygula
-    // Veri ister cache'ten ister API'den gelsin, 'allTimeStats' üzerinde filtreleme yap
-    if (daysFilter && daysFilter !== 'all') {
-      const dateLimit = new Date(new Date().getTime() - (Number(daysFilter) * 24 * 60 * 60 * 1000));
-      
-      const filteredStats = allTimeStats.map(chainStat => {
-        // 'items' verisi artık sunucuda kalıyor, sadece 'topTransactions' üzerinden filtreleme yapamayız.
-        // Bu, mimari bir değişiklik gerektirir. 'items'ı cache'lemeliyiz.
-        
-        // Düzeltme: 'items' verisini 'chain_stats_all_time' içinde saklamamız gerekiyor.
-        // Bu, Supabase'deki yükü artırır.
-        
-        // DAHA İYİ YÖNTEM: Covalent API'sini tekrar çağıracağız ama 'days' parametresiyle.
-        // Bu, cache mantığını bozar.
-        
-        // EN İYİ YÖNTEM (Şimdilik): Frontend'e 'allTimeStats'ı gönder, frontend filtrelesin.
-        // Hayır, bu çok fazla veri transferi demek.
-        
-        // KARAR: API rotası filtrelemeyi desteklemeli.
-        // Cache'i 'days' parametresine göre ayırmak çok karmaşık.
-        // Cache'i *kullanmayacağız* eğer 'days' filtresi varsa. Bu en basit çözüm.
-        
-        // --- YUKARIDAKİ TÜM CACHE MANTIĞINI GÜNCELLİYORUM ---
-        
-        // 1. Cache'i SADECE 'all' (tüm zamanlar) için kullan.
-        // 2. Eğer 'days' filtresi varsa, cache'i ATLA ve Covalent'i ÇAĞIR.
-        // 3. Gelen veriyi (items) sunucuda filtrele.
-        // 4. İşle ve döndür. Cache'e YAZMA (çünkü bu kısmi veri).
-        
-        throw new Error("Tarih filtreleme bu akışta henüz uygulanmadı."); // Bu kısmı yeniden yazacağız.
-      });
-      
-      // return NextResponse.json({ chainStats: filteredStats, source: 'cache-filtered' });
-    }
-
-    // 4. Yeni veriyi (veya cache'lenmiş veriyi) frontend'e döndür
-    return NextResponse.json({ chainStats: allTimeStats, failedChains: [], source: 'cache' });
-
-  } catch (err) {
-    console.error('Error processing wallet data:', err);
-    const errorMessage = (err instanceof Error) ? err.message : 'An unknown server error occurred';
-    return NextResponse.json({ error: errorMessage }, { status: 500 });
-  }
-}
-
-// ------ YENİDEN YAZILMIŞ TAM DOSYA (TÜM MADDELERİ DESTEKLEYEN) ------
-
-export async function GET(req: Request) {
-  const { searchParams } = new URL(req.url);
-  const walletAddress = searchParams.get('address');
-  const daysFilter = searchParams.get('days'); // Madde 3: Tarih filtresi
-  const useCache = !daysFilter || daysFilter === 'all'; // Sadece 'all' ise cache kullan
-
-  if (!walletAddress) {
-    return NextResponse.json({ error: 'Wallet address is required' }, { status: 400 });
-  }
-
-  try {
-    // 1. Cache Kontrolü (Sadece 'all' filtresi için)
+    // 1. Cache Kontrolü
     if (useCache) {
       const { data: cachedData, error: cacheError } = await supabase
         .from('wallet_stats')
@@ -289,18 +153,16 @@ export async function GET(req: Request) {
     
     console.log(`Cache bypassed or old (Filter: ${daysFilter}). Calling Covalent API...`);
     
-    // 2. Covalent API Çağrısı (Madde 4: Promise.allSettled)
+    // 2. Covalent API Çağrısı
     const promises = chains.map(async (chain) => {
       const items = await fetchChainTransactions(walletAddress, chain.slug);
       
-      // Madde 3: Tarih Filtreleme
       let filteredItems = items;
       if (daysFilter && daysFilter !== 'all') {
         const dateLimit = new Date(new Date().getTime() - (Number(daysFilter) * 24 * 60 * 60 * 1000));
         filteredItems = items.filter(tx => new Date(tx.block_signed_at) > dateLimit);
       }
       
-      // Madde 2: İşlem verisini işle (toplam, kategoriler, top 10 tx)
       const processedData = processTransactions(filteredItems);
       
       return {
@@ -317,14 +179,14 @@ export async function GET(req: Request) {
       
     const failedChains = results
       .filter(r => r.status === 'rejected')
-      .map((r, index) => chains[index].name); // Sadece isimleri döndür
+      .map((r, index) => chains[index].name);
 
     if (successfulChains.length === 0) {
       const firstError = (results[0] as PromiseRejectedResult).reason.message;
       throw new Error(`All chains failed to fetch. Last error: ${firstError || 'Unknown error'}`);
     }
 
-    // 3. Cache Güncelleme (Sadece 'all' filtresi çalıştıysa ve başarılıysa)
+    // 3. Cache Güncelleme
     if (useCache && successfulChains.length > 0) {
       const totalFeeUSDAllChains = successfulChains.reduce((s, c) => s + c.totalFeeUSD, 0);
       const topCategory = Object.entries(
@@ -339,7 +201,7 @@ export async function GET(req: Request) {
       supabase.from('wallet_stats').upsert({
         wallet_address: walletAddress,
         total_fee: totalFeeUSDAllChains,
-        chain_stats_all_time: successfulChains, // 'allTimeStats'ı kaydet
+        chain_stats_all_time: successfulChains, // GÜNCELLEME: Artık 'totalFeeNative' de burada
         updated_at: new Date().toISOString(),
         top_category: topCategory
       }).then(({ error: upsertError }) => {
