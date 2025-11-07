@@ -37,10 +37,6 @@ const config = getDefaultConfig({
 
 const queryClient = new QueryClient();
 
-// GÜNCELLEME: Tüm bu manuel bağlantı mantığı kaldırıldı
-// const WALLET_LINKS: Record<string, string> = { ... };
-// function isMobile() { ... }
-
 // ✅ Farcaster frame fix
 async function initFrame() {
   try {
@@ -90,7 +86,7 @@ function getNativeCurrency(chainName: string): string {
   }
 }
 
-// ✅ Donate Butonu (Değişiklik yok, bu harika çalışır)
+// ✅ Donate Butonu
 function DonateButton() {
   const { isConnected } = useAccount();
   const { sendTransaction, isPending } = useSendTransaction();
@@ -105,7 +101,7 @@ function DonateButton() {
 
   if (!isConnected) {
     return (
-      <p className="text-center text-sm text-gray-500 mt-8">
+      <p className="text-center text-sm text-gray-700 mt-8"> {/* // RENK DÜZELTMESİ: 500 -> 700 */}
         Please connect your wallet to support this tool.
       </p>
     );
@@ -131,8 +127,6 @@ function Dashboard() {
   const [chainStats, setChainStats] = useState<ChainStat[]>([]);
   const [selectedChain, setSelectedChain] = useState('Ethereum');
   const [loading, setLoading] = useState(false);
-  // GÜNCELLEME: Mobil modal state'i kaldırıldı
-  // const [showWalletModal, setShowWalletModal] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [failedChains, setFailedChains] = useState<string[]>([]);
   const [daysFilter, setDaysFilter] = useState('all');
@@ -143,22 +137,17 @@ function Dashboard() {
     initFrame();
   }, []);
 
-  // GÜNCELLEME: Cüzdan bağlandığında analizi OTOMATİK tetikle
   useEffect(() => {
     if (isConnected && connectedAddress) {
-      // Eğer kullanıcı manuel bir adres girmediyse,
-      // veya manuel girdiği adres zaten bağlı olan adrese eşitse,
-      // bağlı olan cüzdanı 'aktif' adres yap.
       if (!manualAddress || manualAddress === connectedAddress) {
         setActiveAddress(connectedAddress);
       }
     }
-    // Bağlantı kesilirse, adresi temizle (sonuçları gizler)
     if (!isConnected && activeAddress === connectedAddress) {
         setActiveAddress(null);
-        setManualAddress(''); // Input'u da temizle
+        setManualAddress('');
     }
-  }, [isConnected, connectedAddress, activeAddress, manualAddress]); // Bağımlılıklar güncellendi
+  }, [isConnected, connectedAddress, activeAddress, manualAddress]); 
 
   
   useEffect(() => {
@@ -235,10 +224,6 @@ function Dashboard() {
       },
     ],
   };
-
-  // GÜNCELLEME: Bu fonksiyonlar artık kullanılmıyor
-  // const handleWalletClick = (wallet: keyof typeof WALLET_LINKS) => { ... };
-  // const handleConnectedWalletSubmit = () => { ... };
   
   const handleManualSubmit = () => {
     if (manualAddress) {
@@ -247,20 +232,18 @@ function Dashboard() {
   };
 
   return (
-    <main className="flex flex-col items-center justify-center min-h-screen p-4 bg-gray-50">
+    // RENK DÜZELTMESİ: Ana metin rengini varsayılan olarak koyu yap
+    <main className="flex flex-col items-center justify-center min-h-screen p-4 bg-gray-50 text-gray-900">
       
-      {/* Sağ üstteki ConnectButton (sadece Donate için) */}
       <div className="w-full max-w-3xl flex justify-end mb-4">
         <ConnectButton />
       </div>
       
       <h1 className="text-3xl font-bold mb-6 text-indigo-700">Wallet Fee Tracker</h1>
 
-      {/* GÜNCELLEME: UI akışı basitleştirildi */}
       <div className="w-full max-w-xl p-6 bg-white rounded-lg shadow-md mb-8">
-        <h2 className="text-xl font-semibold text-center mb-4">Analyze Wallet Fees</h2>
+        <h2 className="text-xl font-semibold text-center mb-4 text-gray-900">Analyze Wallet Fees</h2>
         
-        {/* Seçenek 1: Manuel Adres Girişi */}
         <div className="flex flex-col sm:flex-row gap-4">
           <input
             type="text"
@@ -278,26 +261,20 @@ function Dashboard() {
           </button>
         </div>
         
-        <div className="text-center my-4 text-gray-500">OR</div>
+        <div className="text-center my-4 text-gray-700">OR</div> {/* // RENK DÜZELTMESİ: 500 -> 700 */}
 
-        {/* Seçenek 2: Cüzdan Bağla (RainbowKit) */}
-        {/* Bu buton hem mobil hem de masaüstü için doğru modal'ı açar */}
         <div className="flex justify-center">
           <ConnectButton label="Connect Wallet to Analyze Your Fees" />
         </div>
       </div>
 
-      {/* GÜNCELLEME: Manuel mobil modal kaldırıldı */}
-      {/* {showWalletModal && ( ... )} */}
-
-      {/* Sonuç Alanı (Değişiklik yok, 'activeAddress'e göre çalışır) */}
       {activeAddress && (
         <div className="mt-6 w-full max-w-3xl">
           {loading ? (
             <div className="flex flex-col items-center">
               <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-indigo-500 mb-4"></div>
-              <p>Fetching transaction data for {activeAddress.substring(0, 6)}...</p>
-              <p className="text-sm text-gray-500">(This may take a few minutes the first time)</p>
+              <p className="text-gray-900">Fetching transaction data for {activeAddress.substring(0, 6)}...</p> {/* // RENK DÜZELTMESİ: Eklendi */}
+              <p className="text-sm text-gray-700">(This may take a few minutes the first time)</p> {/* // RENK DÜZELTMESİ: 500 -> 700 */}
             </div>
           ) : error ? (
             <div className="text-center p-4 bg-red-100 text-red-700 rounded-lg">
@@ -316,7 +293,7 @@ function Dashboard() {
                 <>
                   <div className="flex justify-between items-center mt-4">
                     <div>
-                      <label className="mr-2">Select Chain:</label>
+                      <label className="mr-2 text-gray-900">Select Chain:</label> {/* // RENK DÜZELTMESİ: Eklendi */}
                       <select
                         value={selectedChain}
                         onChange={(e) => setSelectedChain(e.target.value)}
@@ -330,7 +307,7 @@ function Dashboard() {
                       </select>
                     </div>
                     <div>
-                      <label className="mr-2">Date Range:</label>
+                      <label className="mr-2 text-gray-900">Date Range:</label> {/* // RENK DÜZELTMESİ: Eklendi */}
                       <select
                         value={daysFilter}
                         onChange={(e) => setDaysFilter(e.target.value)}
@@ -345,11 +322,11 @@ function Dashboard() {
 
                   {selectedData && (
                     <>
-                      <p className="mt-4">
+                      <p className="mt-4 text-gray-900"> {/* // RENK DÜZELTMESİ: Eklendi */}
                         Total Spend ({selectedData.name}):{' '}
                         <strong>${selectedData.totalFeeUSD.toFixed(2)} USD</strong>
                       </p>
-                      <p className="mt-1 text-sm text-gray-600">
+                      <p className="mt-1 text-sm text-gray-700"> {/* // RENK DÜZELTMESİ: 600 -> 700 */}
                         (Total Native Spend:{' '}
                         <strong>
                           {selectedData.totalFeeNative.toFixed(6)}{' '}
@@ -357,33 +334,33 @@ function Dashboard() {
                         </strong>
                         )
                       </p>
-                      <p className="mt-1">
+                      <p className="mt-1 text-gray-900"> {/* // RENK DÜZELTMESİ: Eklendi */}
                         Total Transactions: <strong>{selectedData.txCount}</strong>
                       </p>
                       
-                      <h2 className="text-lg font-semibold mt-8">{selectedData.name} - Spend by Category</h2>
-                      <Pie data={categoryChartData} className="mt-6" />
+                      <h2 className="text-lg font-semibold mt-8 text-gray-900">{selectedData.name} - Spend by Category</h2> {/* // RENK DÜZELTMESİ: Eklendi */}
                     </>
                   )}
 
-                  <h2 className="text-lg font-semibold mt-8">Total Spend by Chain (USD)</h2>
+                  <h2 className="text-lg font-semibold mt-8 text-gray-900">Total Spend by Chain (USD)</h2> {/* // RENK DÜZELTMESİ: Eklendi */}
                   <Bar data={chainChartData} className="mt-2" />
 
                   {selectedData && selectedData.topTransactions.length > 0 && (
                     <>
-                      <h2 className="text-lg font-semibold mt-8">Top 10 Expensive Transactions on {selectedData.name}</h2>
+                      <h2 className="text-lg font-semibold mt-8 text-gray-900">Top 10 Expensive Transactions on {selectedData.name}</h2> {/* // RENK DÜZELTMESİ: Eklendi */}
                       <div className="overflow-x-auto mt-2">
                         <table className="min-w-full divide-y divide-gray-200">
                           <thead className="bg-gray-100">
                             <tr>
-                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
-                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Category</th>
-                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Fee (Native)</th>
-                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Fee (USD)</th>
-                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Hash</th>
+                              {/* // RENK DÜZELTMESİ: 500 -> 700 ve font-semibold */}
+                              <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Date</th>
+                              <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Category</th>
+                              <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Fee (Native)</th>
+                              <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Fee (USD)</th>
+                              <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Hash</th>
                             </tr>
                           </thead>
-                          <tbody className="bg-white divide-y divide-gray-200 text-black">
+                          <tbody className="bg-white divide-y divide-gray-200 text-gray-900"> {/* // RENK DÜZELTMESİ: black -> gray-900 */}
                             {selectedData.topTransactions.map((tx) => (
                               <tr key={tx.tx_hash}>
                                 <td className="px-4 py-2 whitespace-nowrap text-sm">{new Date(tx.date).toLocaleDateString()}</td>
@@ -418,12 +395,11 @@ function Dashboard() {
                     </>
                   )}
                   
-                  {/* Donate butonu (sağ üst köşedeki cüzdan bağlıysa çalışır) */}
                   <DonateButton />
                   
                 </>
               ) : (
-                 <div className="text-center p-4 text-gray-600">
+                 <div className="text-center p-4 text-gray-800"> {/* // RENK DÜZELTMESİ: 600 -> 800 */}
                     No transactions found for this period.
                  </div>
               )}
