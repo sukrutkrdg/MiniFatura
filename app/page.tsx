@@ -90,12 +90,12 @@ function getNativeCurrency(chainName: string): string {
 function DonateButton() {
   const { isConnected } = useAccount();
   const { sendTransaction, isPending } = useSendTransaction();
-  const myDonationAddress = '0x973a31858f4d2125f48c880542da11a2796f12d6'; 
+  const myDonationAddress = '0x156b58632d8ba7be86ebdee7b828a5476d8efbd0'; 
 
   const handleDonate = () => {
     sendTransaction({
       to: myDonationAddress,
-      value: parseEther('0.00005'), 
+      value: parseEther('0.005'), 
     });
   };
 
@@ -113,7 +113,7 @@ function DonateButton() {
       disabled={isPending}
       className="mt-8 w-full bg-green-600 text-white px-6 py-3 rounded-xl shadow-md hover:bg-green-700 transition disabled:opacity-50"
     >
-      {isPending ? 'Sending...' : 'Support this Tool (Donate 0.00005 ETH)'}
+      {isPending ? 'Sending...' : 'Support this Tool (Donate 0.005 ETH)'}
     </button>
   );
 }
@@ -130,16 +130,8 @@ function Dashboard() {
   const [failedChains, setFailedChains] = useState<string[]>([]);
   const [daysFilter, setDaysFilter] = useState('all');
 
-  // OTOMATİK ANALİZ DÜZELTMESİ: 'onDisconnect' hook'u eklendi
-  const { address: connectedAddress, isConnected } = useAccount({
-    onDisconnect() {
-      // Cüzdan bağlantısı kesildiğinde, analizi durdur ve sonuçları temizle.
-      console.log('Wallet disconnected, clearing active analysis.');
-      setActiveAddress(null);
-      setChainStats([]);
-      setError(null);
-    }
-  });
+  // BAĞLANTI KESİLME DÜZELTMESİ: Hatalı 'onDisconnect' parametresini kaldır
+  const { address: connectedAddress, isConnected } = useAccount();
 
   const chainNames = chainStats.map(c => c.name);
 
@@ -147,14 +139,21 @@ function Dashboard() {
     initFrame();
   }, []);
 
-  // OTOMATİK ANALİZ DÜZELTMESİ: Otomatik analizi tetikleyen 'useEffect' kaldırıldı.
-  /*
+  // BAĞLANTI KESİLME DÜZELTMESİ: 
+  // 'onDisconnect' yerine 'isConnected' durumunu izleyen bir useEffect ekle.
   useEffect(() => {
-    // ... (otomatik tetikleyen eski kod) ...
-  }, [isConnected, connectedAddress, activeAddress, manualAddress]); 
-  */
+    if (!isConnected) {
+      // Cüzdan bağlı değilse (veya bağlantı kesildiyse),
+      // aktif analizi temizle.
+      console.log('Wallet disconnected, clearing active analysis.');
+      setActiveAddress(null);
+      setChainStats([]);
+      setError(null);
+    }
+  }, [isConnected]); // Sadece 'isConnected' durumu değiştiğinde çalışır.
+
   
-  // Bu useEffect (veri çekme) artık sadece 'activeAddress' değiştiğinde tetikleniyor
+  // Bu useEffect (veri çekme) 'activeAddress' değişimini izler
   useEffect(() => {
     if (!activeAddress) {
       setChainStats([]);
@@ -236,15 +235,13 @@ function Dashboard() {
     }
   };
 
-  // OTOMATİK ANALİZ DÜZELTMESİ: Bu fonksiyon artık kullanılıyor
   const handleConnectedWalletSubmit = () => {
     if (isConnected && connectedAddress) {
       setActiveAddress(connectedAddress);
-      setManualAddress(connectedAddress); // Input'u da doldur
+      setManualAddress(connectedAddress); 
     } else {
-      // Eğer bir şekilde bağlanmamışsa, RainbowKit modal'ını tetikle
-      // (Bu butona basıldığında genellikle bağlı olur, ama garantiye alalım)
-      alert("Please connect your wallet first using the 'Connect Wallet' button.");
+       // Bu butona basıldığında bağlı değilse, kullanıcıyı sağ üstteki butona yönlendir
+       alert("Please connect your wallet first using the 'Connect Wallet' button in the top right corner.");
     }
   };
 
@@ -280,7 +277,6 @@ function Dashboard() {
         
         <div className="text-center my-4 text-gray-700">OR</div>
 
-        {/* OTOMATİK ANALİZ DÜZELTMESİ: 'ConnectButton'ı 'Analyze' butonuyla değiştirdik */}
         <div className="flex justify-center">
            <button
             onClick={handleConnectedWalletSubmit}
@@ -294,8 +290,6 @@ function Dashboard() {
                   : 'Connect Wallet to Analyze')}
           </button>
         </div>
-        {/* Not: 'Connect Wallet' yazısı (bağlı değilken) tıklandığında hata verir, çünkü asıl bağlantı sağ üstteki RainbowKit butonuyladır. */}
-        {/* Kullanıcıdan önce sağ üstten bağlanmasını bekliyoruz. */}
 
       </div>
 
