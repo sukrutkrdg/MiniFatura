@@ -29,7 +29,7 @@ ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend,
 
 // ✅ RainbowKit Config
 const config = getDefaultConfig({
-  appName: 'WalletFee Tracker',
+  appName: 'Fee Tracker',
   projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID!,
   chains: [mainnet, polygon, optimism, arbitrum, base],
   ssr: true,
