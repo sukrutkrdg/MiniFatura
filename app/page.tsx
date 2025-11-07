@@ -90,12 +90,12 @@ function getNativeCurrency(chainName: string): string {
 function DonateButton() {
   const { isConnected } = useAccount();
   const { sendTransaction, isPending } = useSendTransaction();
-  const myDonationAddress = '0x156b58632d8ba7be86ebdee7b828a5476d8efbd0'; 
+  const myDonationAddress = '0x973a31858f4d2125f48c880542da11a2796f12d6'; 
 
   const handleDonate = () => {
     sendTransaction({
       to: myDonationAddress,
-      value: parseEther('0.005'), 
+      value: parseEther('0.00005'), 
     });
   };
 
@@ -113,7 +113,7 @@ function DonateButton() {
       disabled={isPending}
       className="mt-8 w-full bg-green-600 text-white px-6 py-3 rounded-xl shadow-md hover:bg-green-700 transition disabled:opacity-50"
     >
-      {isPending ? 'Sending...' : 'Support this Tool (Donate 0.005 ETH)'}
+      {isPending ? 'Sending...' : 'Support this Tool (Donate 0.00005 ETH)'}
     </button>
   );
 }
