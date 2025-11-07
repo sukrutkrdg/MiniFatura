@@ -90,7 +90,7 @@ function getNativeCurrency(chainName: string): string {
 function DonateButton() {
   const { isConnected } = useAccount();
   const { sendTransaction, isPending } = useSendTransaction();
-  const myDonationAddress = '0x156b58632d8ba7be86ebdee7b828a5476d8efbd0'; 
+  const myDonationAddress = '0x973a31858f4d2125f48c880542da11a2796f12d6'; 
 
   const handleDonate = () => {
     sendTransaction({
