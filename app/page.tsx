@@ -37,7 +37,7 @@ const config = getDefaultConfig({
 
 const queryClient = new QueryClient();
 
-// ✅ Farcaster frame fix
+// ✅ Farcaster fraoooooooooooome fix
 async function initFrame() {
   try {
     const host = frameHost as any;
