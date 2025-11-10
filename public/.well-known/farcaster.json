@@ -4,7 +4,7 @@
     "payload": "eyJkb21haW4iOiJtaW5pLWZhdHVyYS52ZXJjZWwuYXBwIn0",
     "signature": "kOteyYPKXi0viROu1zyvfBSW2VhLr2NJCw8X0Rg9pSZdSn1yuGr73cTobFqGshXWWFPsiBb5cIsR/cH63BlxvRw="
   },
-  "frame": {
+  "miniapp": {
     "name": "Fee Tracker",
     "version": "1.0.0",
     "iconUrl": "https://mini-fatura.vercel.app/icon.png",
