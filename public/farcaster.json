@@ -7,9 +7,7 @@
   "miniapp": {
     "name": "Fee Tracker",
     "version": "1",
-    "home_url": "https://mini-fatura.vercel.app",
-    "icon_url": "https://mini-fatura.vercel.app/icon.png",
-    "splash_image_url": "https://mini-fatura.vercel.app/splash.png"
+    "home_url": "https://mini-fatura.vercel.app"
   },
   "baseBuilder": {
     "ownerAddress": "0x328a8ee104a7ec790b049cb4043cabc7000d516"
