@@ -7,19 +7,7 @@
   "miniapp": {
     "name": "Fee Tracker",
     "version": "1.0.0",
-    "icon_url": "https://mini-fatura.vercel.app/icon.png",
-    "home_url": "https://mini-fatura.vercel.app",
-    "splash_image_url": "https://mini-fatura.vercel.app/splash.png",
-    "splash_background_color": "#6200EA",
-    "description": "Track total transaction fee spending across your wallets across multiple blockchains.",
-    "tagline": "Track Your Crypto Fees",
-    "categories": ["utility"],
-    "tags": ["fee", "gas", "tracker", "cost", "transaction"],
-    "screenshots": ["https://mini-fatura.vercel.app/screenshots"],
-    "hero_image_url": "https://mini-fatura.vercel.app/heroimage.png",
-    "og_title": "Fee Tracker - Multi-Chain Gas Analytics",
-    "og_description": "Track total transaction fee spending across your wallets across multiple blockchains.",
-    "og_image_url": "https://mini-fatura.vercel.app/image.png"
+    "home_url": "https://mini-fatura.vercel.app"
   },
   "baseBuilder": {
     "ownerAddress": "0x328a8EE104a7ECc790b049cB4043caBc7000d516"
