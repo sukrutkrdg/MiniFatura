@@ -1,9 +1,12 @@
-{
-  "redirects": [
-    {
-      "source": "/.well-known/farcaster.json",
-      "destination": "https://api.farcaster.xyz/miniapps/hosted-manifest/019a5304-1682-83ad-1a1e-4c3228cf3dfb",
-      "statusCode": 307
-    }
-  ]
-}
+
+
+
+//{
+  //"redirects": [
+    //{
+      //"source": "/.well-known/farcaster.json",
+      //"destination": "https://api.farcaster.xyz/miniapps/hosted-manifest/019a5304-1682-83ad-1a1e-4c3228cf3dfb",
+      //"statusCode": 307
+    //}
+  //]
+//}
