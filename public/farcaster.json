@@ -1,8 +1,8 @@
 {
   "accountAssociation": {
-    "header": "...",
-    "payload": "...",
-    "signature": "..."
+    "header": "eyJmaWQiOjI4NzI4NiwidHlwZSI6ImN1c3RvZHkiLCJrZXkiOiIweEZFNUU1MDgzMDdhYTY2OTk5ZUIxMDhkNTdCRmJmYzAyY2M1QzRkODkifQ",
+    "payload": "eyJkb21haW4iOiJtaW5pLWZhdHVyYS52ZXJjZWwuYXBwIn0",
+    "signature": "kOteyYPKXi0viROu1zyvfBSW2VhLr2NJCw8X0Rg9pSZdSn1yuGr73cTobFqGshXWWFPsiBb5cIsR/cH63BlxvRw="
   },
   "miniapp": {
     "name": "Fee Tracker",
