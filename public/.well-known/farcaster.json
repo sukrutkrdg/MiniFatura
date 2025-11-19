@@ -1,8 +1,8 @@
 {
   "accountAssociation": {
-    "header": "eyJmaWQiOjI4NzI4NiwidHlwZSI6ImN1c3RvZHkiLCJrZXkiOiIweEZFNUU1MDgzMDdhYTY2OTk5ZUIxMDhkNTdCRmJmYzAyY2M1QzRkODkifQ",
+   "header": "eyJmaWQiOjI4NzI4NiwidHlwZSI6ImN1c3RvZHkiLCJrZXkiOiIweDg0ODhiNkY5NThiMTVlQzQxZjZiNmMyRWY4MkFEQzEwNTc4NTU5NjkifQ",
     "payload": "eyJkb21haW4iOiJtaW5pLWZhdHVyYS52ZXJjZWwuYXBwIn0",
-    "signature": "kOteyYPKXi0viROu1zyvfBSW2VhLr2NJCw8X0Rg9pSZdSn1yuGr73cTobFqGshXWWFPsiBb5cIsR/cH63BlxvRw="
+    "signature": "6MLqizhSSTGc32OOGQTkWQA8+u0bX0L9ExpjYFZmUhkTvldzu5Nfs/CZTWy7acLu13mot8DfnYfvLz0NtADYJBs="
   },
   "miniapp": {
     "name": "Fee Tracker",
@@ -37,3 +37,5 @@
     "ownerAddress": "0x328a8EE104a7ECc790b049cB4043caBc7000d516"
   }
 }
+
+
