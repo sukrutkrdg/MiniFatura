@@ -8,7 +8,7 @@ export default function Head() {
         content="Track total transaction fee spending across your wallets across multiple blockchains."
       />
       {/* GÜNCELLEME: Burayı değiştirdik */}
-      <meta property="og:title" content="Fee Tracker - Track Gas Spending" />
+      <meta property="og:title" content="Fee Tracker" />
       <meta
         property="og:description"
         content="Track total transaction fee spending across your wallets across multiple blockchains."
