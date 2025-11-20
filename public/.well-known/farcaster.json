@@ -6,7 +6,7 @@
   },
   "miniapp": {
    "name": "Fee Tracker",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "iconUrl": "https://mini-fatura.vercel.app/icon.png",
   "homeUrl": "https://mini-fatura.vercel.app",
   "imageUrl": "https://mini-fatura.vercel.app/image.png",
