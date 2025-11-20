@@ -1,79 +1,42 @@
-//{
-  //"accountAssociation": {
-   //"header": "eyJmaWQiOjI4NzI4NiwidHlwZSI6ImN1c3RvZHkiLCJrZXkiOiIweDg0ODhiNkY5NThiMTVlQzQxZjZiNmMyRWY4MkFEQzEwNTc4NTU5NjkifQ",
-    //"payload": "eyJkb21haW4iOiJtaW5pLWZhdHVyYS52ZXJjZWwuYXBwIn0",
-    //"signature": "6MLqizhSSTGc32OOGQTkWQA8+u0bX0L9ExpjYFZmUhkTvldzu5Nfs/CZTWy7acLu13mot8DfnYfvLz0NtADYJBs="
-  //},
-  //"miniapp": {
-   // "name": "Fee Tracker",
-    //"version": "1.0.0",
-    //"iconUrl": "https://mini-fatura.vercel.app/icon.png",
-    //"homeUrl": "https://mini-fatura.vercel.app",
-    //"imageUrl": "https://mini-fatura.vercel.app/image.png",
-    //"buttonTitle": "Start Tracking Fees",
-    //"splashImageUrl": "https://mini-fatura.vercel.app/splash.png",
-    //"splashBackgroundColor": "#6200EA",
-    //"webhookUrl": "https://mini-fatura.vercel.app/api/webhook",
-    //"subtitle": "Wallet Fee Tracker",
-    //"description": "Track total transaction fee spending across your wallets across multiple blockchains.",
-    //"screenshotUrls": [
-     // "https://mini-fatura.vercel.app/screenshots"
-    //],
-   // "primaryCategory": "utility",
-    //"tags": [
-      //"fee",
-      //"gas",
-      //"tracker",
-      //"cost",
-      //"transaction"
-    //],
-    //"heroImageUrl": "https://mini-fatura.vercel.app/heroimage.png",
-    //"tagline": "Track Your Crypto Fees",
-    //"ogTitle": "Fee Tracker - Multi-Chain Gas Analytics",
-    //"ogDescription": "Track total transaction fee spending across your wallets across multiple blockchains.",
-    //"ogImageUrl": "https://mini-fatura.vercel.app/image.png"
-  //},
-  //"baseBuilder": {
-    //"ownerAddress": "0x328a8EE104a7ECc790b049cB4043caBc7000d516"
-  //}
-//}
+{
+  "accountAssociation": {
+   "header": "eyJmaWQiOjI4NzI4NiwidHlwZSI6ImN1c3RvZHkiLCJrZXkiOiIweDg0ODhiNkY5NThiMTVlQzQxZjZiNmMyRWY4MkFEQzEwNTc4NTU5NjkifQ",
+   "payload": "eyJkb21haW4iOiJtaW5pLWZhdHVyYS52ZXJjZWwuYXBwIn0",
+   "signature": "6MLqizhSSTGc32OOGQTkWQA8+u0bX0L9ExpjYFZmUhkTvldzu5Nfs/CZTWy7acLu13mot8DfnYfvLz0NtADYJBs="
+  },
+  "miniapp": {
+   "name": "Fee Tracker",
+  "version": "1.0.0",
+  "iconUrl": "https://mini-fatura.vercel.app/icon.png",
+  "homeUrl": "https://mini-fatura.vercel.app",
+  "imageUrl": "https://mini-fatura.vercel.app/image.png",
+  "buttonTitle": "Start Tracking Fees",
+  "splashImageUrl": "https://mini-fatura.vercel.app/splash.png",
+  "splashBackgroundColor": "#6200EA",
+  "webhookUrl": "https://mini-fatura.vercel.app/api/webhook",
+  "subtitle": "Wallet Fee Tracker",
+  "description": "Track total transaction fee spending across your wallets across multiple blockchains.",
+  "screenshotUrls": [
+  "https://mini-fatura.vercel.app/screenshots"
+  ],
+  "primaryCategory": "utility",
+  "tags": [
+  "fee",
+  "gas",
+  "tracker",
+  "cost",
+  "transaction"
+  ],
+  "heroImageUrl": "https://mini-fatura.vercel.app/heroimage.png",
+  "tagline": "Track Your Crypto Fees",
+  "ogTitle": "Fee Tracker - Multi-Chain Gas Analytics",
+  "ogDescription": "Track total transaction fee spending across your wallets across multiple blockchains.",
+  "ogImageUrl": "https://mini-fatura.vercel.app/image.png"
+  },
+  "baseBuilder": {
+  "ownerAddress": "0x328a8EE104a7ECc790b049cB4043caBc7000d516"
+  }
+}
 
  
 
-
-{
-  "frame": {
-    "name": "Fee Tracker",
-    "version": "1",
-    "iconUrl": "https://mini-fatura.vercel.app/icon.png",
-    "homeUrl": "https://mini-fatura.vercel.app",
-    "imageUrl": "https://mini-fatura.vercel.app/image.png",
-    "buttonTitle": "Start Tracking Fees",
-    "splashImageUrl": "https://mini-fatura.vercel.app/splash.png",
-    "splashBackgroundColor": "#6200EA",
-    "webhookUrl": "https://mini-fatura.vercel.app/api/webhook",
-    "subtitle": "Wallet Fee Tracker",
-    "description": "Track total transaction fee spending across your wallets across multiple blockchains",
-    "screenshotUrls": [
-      "https://mini-fatura.vercel.app/screenshots"
-    ],
-    "primaryCategory": "utility",
-    "tags": [
-      "fee",
-      "gas",
-      "tracker",
-      "cost",
-      "transaction"
-    ],
-    "heroImageUrl": "https://mini-fatura.vercel.app/heroimage.png",
-    "tagline": "Track Your Crypto Fees",
-    "ogTitle": "Fee Tracker",
-    "ogDescription": "Track total transaction fee spending across your wallets across multiple blockchains",
-    "ogImageUrl": "https://mini-fatura.vercel.app/image.png"
-  },
-  "accountAssociation": {
-    "header": "eyJmaWQiOjI4NzI4NiwidHlwZSI6ImN1c3RvZHkiLCJrZXkiOiIweEZFNUU1MDgzMDdhYTY2OTk5ZUIxMDhkNTdCRmJmYzAyY2M1QzRkODkifQ",
-    "payload": "eyJkb21haW4iOiJtaW5pLWZhdHVyYS52ZXJjZWwuYXBwIn0",
-    "signature": "kOteyYPKXi0viROu1zyvfBSW2VhLr2NJCw8X0Rg9pSZdSn1yuGr73cTobFqGshXWWFPsiBb5cIsR/cH63BlxvRw="
-  }
-}
