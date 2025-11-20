@@ -2,7 +2,7 @@ export default function Head() {
   return (
     <>
       {/* GÜNCELLEME: Burayı değiştirdik */}
-      <title>Fee Tracker - Multi-chain Fee Tracker</title>
+      <title>Fee Tracker</title>
       <meta
         name="description"
         content="Track total transaction fee spending across your wallets across multiple blockchains."
