@@ -29,7 +29,7 @@
   ],
   "heroImageUrl": "https://mini-fatura.vercel.app/heroimage.png",
   "tagline": "Track Your Crypto Fees",
-  "ogTitle": "Fee Tracker - Multi-Chain Gas Analytics",
+  "ogTitle": "Fee Tracker",
   "ogDescription": "Track total transaction fee spending across your wallets across multiple blockchains.",
   "ogImageUrl": "https://mini-fatura.vercel.app/image.png"
   },
